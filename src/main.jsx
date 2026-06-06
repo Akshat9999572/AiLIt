@@ -5,9 +5,9 @@ import { supabase } from './supabase';
 import './styles.css';
 
 const lensText = {
-  Close: 'The repeated "remember" turns memory into a physical act. The sentence balances the intimate against the planetary, making the machine archive feel tender rather than total.',
-  Machine: 'Key semantic clusters: memory, domestic voice, and environment. The passage uses personification to reduce distance between computational storage and human recollection.',
-  Strange: 'What if the machine is not remembering the mother, but teaching the weather to impersonate her? The line opens a small door between archive and haunting.',
+  Close: 'AI can trace recurring images, rhythms, and relationships across a text, helping readers notice patterns that may be difficult to see in a single reading.',
+  Machine: 'By comparing language across genres, periods, and cultures, AI can suggest unexpected connections while leaving interpretation, judgment, and meaning in human hands.',
+  Strange: 'For creative writers, AI can act as a playful collaborator: offering alternate structures, unfamiliar perspectives, and surprising prompts that open new directions without replacing the writer.',
 };
 
 function App() {
@@ -16,6 +16,7 @@ function App() {
   const [view, setView] = useState('home');
   const [lens, setLens] = useState('Close');
   const [stories, setStories] = useState([]);
+  const [selectedStory, setSelectedStory] = useState(null);
   const [session, setSession] = useState(null);
   const [isAdmin, setIsAdmin] = useState(false);
   const [loginOpen, setLoginOpen] = useState(false);
@@ -159,14 +160,57 @@ function App() {
     );
   }
 
+  if (view === 'about') {
+    return (
+      <main className="about-page">
+        <header className="editor-header">
+          <button className="brand" onClick={() => setView('home')}><img src="/ailit-logo.png" alt="" /><span>AiLit</span></button>
+          <span>About</span>
+          <button className="editor-exit" onClick={() => setView('home')}><X size={19} /> Close</button>
+        </header>
+        <section className="about-content">
+          <span className="eyebrow">Artificial Intelligence · Literature</span>
+          <h1>Where technology<br />meets imagination.</h1>
+          <div className="about-copy">
+            <p>AiLit stands for Artificial Intelligence and Literature. It is a literary magazine that encourages a thoughtful fusion of computational tools with human storytelling, poetry, criticism, and imagination.</p>
+            <p>We believe this meeting matters because AI can help readers discover new patterns and help writers approach language from unfamiliar directions. AiLit keeps human voice, judgment, and creativity at the centre while exploring how technology can open new possibilities for literature.</p>
+          </div>
+        </section>
+      </main>
+    );
+  }
+
+  if (view === 'story' && selectedStory) {
+    return (
+      <main className="reading-page">
+        <header className="editor-header">
+          <button className="brand" onClick={() => setView('home')}><img src="/ailit-logo.png" alt="" /><span>AiLit</span></button>
+          <span>{selectedStory.type}</span>
+          <button className="editor-exit" onClick={() => { setView('home'); setTimeout(() => scrollTo('journal'), 0); }}><X size={19} /> Close</button>
+        </header>
+        <article className={`reading-article ${selectedStory.type === 'Poem' ? 'reading-poem' : ''}`}>
+          <div className="reading-heading">
+            <span className="eyebrow">{selectedStory.type}</span>
+            <h1>{selectedStory.title}</h1>
+            <p>{selectedStory.introduction}</p>
+            <div className="author">By {selectedStory.author}</div>
+          </div>
+          {selectedStory.image_url && <img className="reading-image" src={selectedStory.image_url} alt="" />}
+          <div className="reading-body" dangerouslySetInnerHTML={{ __html: selectedStory.body }} />
+        </article>
+      </main>
+    );
+  }
+
   return (
     <main>
       <header className="site-header">
         <button className="brand" onClick={() => scrollTo('top')} aria-label="AiLit home"><img src="/ailit-logo.png" alt="" /><span>AiLit</span></button>
         <nav className={menuOpen ? 'nav open' : 'nav'}>
+          <button onClick={() => { setView('home'); setMenuOpen(false); setTimeout(() => scrollTo('top'), 0); }}>Home</button>
           {isAdmin && <button onClick={openEditor}>Add New Writing</button>}
           <button onClick={() => scrollTo('journal')}>New Writing</button>
-          <button onClick={() => scrollTo('about')}>About</button>
+          <button onClick={() => { setView('about'); setMenuOpen(false); }}>About</button>
         </nav>
         <div className="header-actions">
           {isAdmin ? <button className="text-button" onClick={logout}>Sign out</button> : <button className="text-button" onClick={() => setLoginOpen(true)}>Admin</button>}
@@ -175,9 +219,9 @@ function App() {
       </header>
 
       <section className="hero" id="top"><div className="hero-grid"><div className="hero-copy"><p className="eyebrow">Literature, in conversation with Artificial Intelligence</p><h1>What does it mean<br />to <em>imagine</em> now?</h1><p className="hero-deck">AiLit explores fiction, poetry, criticism, and experiments from the shifting border between human language and Artificial Intelligence.</p></div><div className="cover-wrap"><div className="cover"><div className="cover-top"><span>AiLit</span></div><div className="orb"><div className="orb-line one" /><div className="orb-line two" /><div className="orb-line three" /><Asterisk className="orb-star" /></div><div className="cover-title">Intimacy<br />& Artificial Intelligence</div><div className="cover-foot">Fiction · Poetry · Essays · Experiments</div></div></div></div></section>
-      <section className="manifesto" id="about"><Asterisk size={24} /><p>We believe technology does not diminish literature's mystery. It gives the mystery <em>new rooms</em> to inhabit.</p></section>
-      <section className="journal section" id="journal"><div className="section-heading"><div><h2>New writing</h2></div></div>{stories.length ? <div className="story-grid">{stories.map((story) => <article className="story" key={story.id}><div className="story-art rust">{story.image_url ? <img src={story.image_url} alt="" /> : <div className="glyph">“</div>}</div><div className="story-meta"><span>{story.type}</span><span>New</span></div><h3>{story.title}</h3><p>{story.introduction}</p><div className="author">By {story.author}</div></article>)}</div> : <div className="empty-writing"><p>New work will appear here.</p></div>}</section>
-      <section className="lab section" id="lab"><div className="lab-intro"><span className="eyebrow light">AiLit Reading Lab · 01</span><h2>A text can hold<br />more than one mind.</h2><p>Our Reading Lab uses generative tools as a companion to interpretation, never a replacement for it. Choose a lens and see a passage shift.</p><div className="principles"><span><Feather size={16} /> Human-led</span><span><Sparkles size={16} /> Transparent</span><span><AudioLines size={16} /> Playful</span></div></div><div className="reader"><div className="reader-label">From “Weather Archive” by June Okafor</div><blockquote>“The machine remembered my mother's voice the way weather remembers a city: incompletely, and everywhere.”</blockquote><div className="lens-tabs">{Object.keys(lensText).map((item) => <button className={lens === item ? 'active' : ''} onClick={() => setLens(item)} key={item}>{item === 'Close' ? 'Close reading' : item === 'Machine' ? 'Machine reading' : 'Make it strange'}</button>)}</div><div className="lens-output" key={lens}><Sparkles size={17} /><p>{lensText[lens]}</p></div></div></section>
+      <section className="manifesto"><Asterisk size={24} /><p>We believe technology does not diminish literature's mystery. It gives the mystery <em>new rooms</em> to inhabit.</p></section>
+      <section className="journal section" id="journal"><div className="section-heading"><div><h2>New writing</h2></div></div>{stories.length ? <div className="story-grid">{stories.map((story) => <article className="story story-link" key={story.id} tabIndex="0" role="link" onClick={() => { setSelectedStory(story); setView('story'); window.scrollTo(0, 0); }} onKeyDown={(event) => { if (event.key === 'Enter') { setSelectedStory(story); setView('story'); window.scrollTo(0, 0); } }}><div className="story-art rust">{story.image_url ? <img src={story.image_url} alt="" /> : <div className="glyph">“</div>}</div><div className="story-meta"><span>{story.type}</span><span>Read <ArrowRight size={13} /></span></div><h3>{story.title}</h3><p>{story.introduction}</p><div className="author">By {story.author}</div></article>)}</div> : <div className="empty-writing"><p>New work will appear here.</p></div>}</section>
+      <section className="lab section" id="lab"><div className="lab-intro"><span className="eyebrow light">AiLit Reading Lab · 01</span><h2>New ways to read.<br />New ways to write.</h2><p>Artificial Intelligence can offer fresh insight into literature by revealing hidden patterns, making unexpected connections, and inviting writers to explore possibilities beyond familiar habits.</p><div className="principles"><span><Feather size={16} /> Human-led</span><span><Sparkles size={16} /> Exploratory</span><span><AudioLines size={16} /> Creative</span></div></div><div className="reader"><div className="reader-label">Artificial Intelligence and literary imagination</div><blockquote>“AI does not decide what a story means. It gives readers and writers another way to ask what it might become.”</blockquote><div className="lens-tabs">{Object.keys(lensText).map((item) => <button className={lens === item ? 'active' : ''} onClick={() => setLens(item)} key={item}>{item === 'Close' ? 'Discover patterns' : item === 'Machine' ? 'Find connections' : 'Create possibilities'}</button>)}</div><div className="lens-output" key={lens}><Sparkles size={17} /><p>{lensText[lens]}</p></div></div></section>
       <footer><div className="footer-brand"><img src="/ailit-logo.png" alt="" /><span>AiLit</span><p>A literary magazine for language, imagination, and Artificial Intelligence.</p></div><div className="copyright">© 2026 AiLit Magazine <span>Made by humans, with questions.</span></div></footer>
 
       {loginOpen && <div className="login-backdrop" onMouseDown={() => setLoginOpen(false)}><form className="login-panel" onSubmit={login} onMouseDown={(event) => event.stopPropagation()}><button type="button" className="admin-close" onClick={() => setLoginOpen(false)}><X /></button><span className="eyebrow">Admin access</span><h2>Sign in</h2><label>Email<input type="email" value={authForm.email} onChange={(event) => setAuthForm({ ...authForm, email: event.target.value })} required /></label><label>Password<input type="password" value={authForm.password} onChange={(event) => setAuthForm({ ...authForm, password: event.target.value })} required /></label>{message && <p className="form-message">{message}</p>}<button className="solid-button" type="submit">Continue <ArrowRight size={18} /></button></form></div>}
