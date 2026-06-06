@@ -1,6 +1,6 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { createRoot } from 'react-dom/client';
-import { ArrowRight, Asterisk, Menu, X, Sparkles, Feather, AudioLines, ImagePlus, Bold, Italic, List, Heading2, LogOut } from 'lucide-react';
+import { ArrowRight, Asterisk, Menu, X, Sparkles, Feather, AudioLines, ImagePlus, Bold, Italic, List, Heading2, LogOut, Trash2 } from 'lucide-react';
 import { supabase } from './supabase';
 import './styles.css';
 
@@ -13,13 +13,14 @@ const lensText = {
 function App() {
   const editorRef = useRef(null);
   const [menuOpen, setMenuOpen] = useState(false);
-  const [view, setView] = useState('home');
+  const [view, setView] = useState(window.location.pathname === '/admin' ? 'admin' : 'home');
   const [lens, setLens] = useState('Close');
   const [stories, setStories] = useState([]);
   const [selectedStory, setSelectedStory] = useState(null);
   const [session, setSession] = useState(null);
   const [isAdmin, setIsAdmin] = useState(false);
-  const [loginOpen, setLoginOpen] = useState(false);
+  const [authReady, setAuthReady] = useState(false);
+  const [adminChecked, setAdminChecked] = useState(false);
   const [authForm, setAuthForm] = useState({ email: '', password: '' });
   const [message, setMessage] = useState('');
   const [saving, setSaving] = useState(false);
@@ -28,8 +29,8 @@ function App() {
 
   useEffect(() => {
     loadStories();
-    supabase.auth.getSession().then(({ data }) => setSession(data.session));
-    const { data: listener } = supabase.auth.onAuthStateChange((_event, nextSession) => setSession(nextSession));
+    supabase.auth.getSession().then(({ data }) => { setSession(data.session); setAuthReady(true); });
+    const { data: listener } = supabase.auth.onAuthStateChange((_event, nextSession) => { setSession(nextSession); setAuthReady(true); });
     return () => listener.subscription.unsubscribe();
   }, []);
 
@@ -37,10 +38,13 @@ function App() {
     const checkAdmin = async () => {
       if (!session?.user) {
         setIsAdmin(false);
+        setAdminChecked(true);
         return;
       }
+      setAdminChecked(false);
       const { data } = await supabase.from('admins').select('user_id').eq('user_id', session.user.id).maybeSingle();
       setIsAdmin(Boolean(data));
+      setAdminChecked(true);
     };
     checkAdmin();
   }, [session]);
@@ -60,19 +64,12 @@ function App() {
     setMessage('');
     const { error } = await supabase.auth.signInWithPassword(authForm);
     if (error) return setMessage(error.message);
-    setLoginOpen(false);
     setAuthForm({ email: '', password: '' });
   };
 
   const logout = async () => {
     await supabase.auth.signOut();
-    setView('home');
-  };
-
-  const openEditor = () => {
-    if (isAdmin) setView('editor');
-    else setLoginOpen(true);
-    setMenuOpen(false);
+    window.location.assign('/');
   };
 
   const uploadImage = (event) => {
@@ -117,19 +114,59 @@ function App() {
     setDraft({ type: 'Article', title: '', author: '', introduction: '', image: '' });
     setImageFile(null);
     await loadStories();
-    setView('home');
-    setTimeout(() => scrollTo('journal'), 0);
+    if (editorRef.current) editorRef.current.innerHTML = '';
+    setMessage('Published successfully.');
   };
 
-  if (view === 'editor' && isAdmin) {
+  const deleteWriting = async (story) => {
+    if (!isAdmin || !window.confirm(`Delete "${story.title}"? This cannot be undone.`)) return;
+    setMessage('');
+    const { error } = await supabase.from('writings').delete().eq('id', story.id);
+    if (error) return setMessage(error.message);
+    await loadStories();
+  };
+
+  if (view === 'admin' && !authReady) {
+    return <main className="admin-loading">Checking admin access...</main>;
+  }
+
+  if (view === 'admin' && !session) {
+    return (
+      <main className="admin-login-page">
+        <header className="editor-header">
+          <button className="brand" onClick={() => window.location.assign('/')}><img src="/ailit-logo.png" alt="" /><span>AiLit</span></button>
+          <span>Admin Panel</span>
+          <button className="editor-exit" onClick={() => window.location.assign('/')}><X size={19} /> Close</button>
+        </header>
+        <form className="admin-login-form" onSubmit={login}>
+          <span className="eyebrow">Restricted access</span>
+          <h1>Admin sign in.</h1>
+          <label>Email<input type="email" value={authForm.email} onChange={(event) => setAuthForm({ ...authForm, email: event.target.value })} required /></label>
+          <label>Password<input type="password" value={authForm.password} onChange={(event) => setAuthForm({ ...authForm, password: event.target.value })} required /></label>
+          {message && <p className="form-message">{message}</p>}
+          <button className="solid-button" type="submit">Continue <ArrowRight size={18} /></button>
+        </form>
+      </main>
+    );
+  }
+
+  if (view === 'admin' && session && !adminChecked) {
+    return <main className="admin-loading">Checking admin access...</main>;
+  }
+
+  if (view === 'admin' && session && !isAdmin) {
+    return <main className="access-denied"><h1>Access denied.</h1><p>This account is not an AiLit administrator.</p><button className="solid-button" onClick={logout}>Sign out</button></main>;
+  }
+
+  if (view === 'admin' && isAdmin) {
     return (
       <main className="editor-page">
         <header className="editor-header">
-          <button className="brand" onClick={() => setView('home')}><img src="/ailit-logo.png" alt="" /><span>AiLit</span></button>
+          <button className="brand" onClick={() => window.location.assign('/')}><img src="/ailit-logo.png" alt="" /><span>AiLit</span></button>
           <span>Admin Panel</span>
-          <div className="editor-account"><button className="editor-exit" onClick={() => setView('home')}><X size={18} /> Close</button><button className="editor-exit" onClick={logout}><LogOut size={17} /> Sign out</button></div>
+          <div className="editor-account"><button className="editor-exit" onClick={() => window.location.assign('/')}><X size={18} /> Close</button><button className="editor-exit" onClick={logout}><LogOut size={17} /> Sign out</button></div>
         </header>
-        <form className="writing-editor" onSubmit={publishWriting}>
+        <form className="writing-editor admin-compose" onSubmit={publishWriting}>
           <div className="editor-title"><span className="eyebrow">Add new writing</span><h1>Compose your work.</h1><p>Publish an article or poem to AiLit.</p></div>
           <div className="editor-fields">
             <div className="editor-row">
@@ -153,9 +190,15 @@ function App() {
               <input type="file" accept="image/*,.heic,.heif,.tif,.tiff,.bmp,.svg" onChange={uploadImage} />
             </label>
             {message && <p className="form-message">{message}</p>}
-            <div className="editor-actions"><button type="button" onClick={() => setView('home')}>Cancel</button><button className="solid-button" type="submit" disabled={saving}>{saving ? 'Publishing...' : 'Publish writing'} <ArrowRight size={18} /></button></div>
+            <div className="editor-actions"><button type="button" onClick={() => window.location.assign('/')}>Cancel</button><button className="solid-button" type="submit" disabled={saving}>{saving ? 'Publishing...' : 'Publish writing'} <ArrowRight size={18} /></button></div>
           </div>
         </form>
+        <section className="published-manager">
+          <span className="eyebrow">Published work</span>
+          <h2>Manage writing</h2>
+          {stories.length ? <div className="published-list">{stories.map((story) => <article key={story.id}><div><span>{story.type}</span><h3>{story.title}</h3><p>By {story.author}</p></div><button onClick={() => deleteWriting(story)} aria-label={`Delete ${story.title}`}><Trash2 size={18} /> Delete</button></article>)}</div> : <p className="manager-empty">No published writing yet.</p>}
+          {message && <p className="form-message">{message}</p>}
+        </section>
       </main>
     );
   }
@@ -208,12 +251,10 @@ function App() {
         <button className="brand" onClick={() => scrollTo('top')} aria-label="AiLit home"><img src="/ailit-logo.png" alt="" /><span>AiLit</span></button>
         <nav className={menuOpen ? 'nav open' : 'nav'}>
           <button onClick={() => { setView('home'); setMenuOpen(false); setTimeout(() => scrollTo('top'), 0); }}>Home</button>
-          {isAdmin && <button onClick={openEditor}>Add New Writing</button>}
           <button onClick={() => scrollTo('journal')}>New Writing</button>
           <button onClick={() => { setView('about'); setMenuOpen(false); }}>About</button>
         </nav>
         <div className="header-actions">
-          {isAdmin ? <button className="text-button" onClick={logout}>Sign out</button> : <button className="text-button" onClick={() => setLoginOpen(true)}>Admin</button>}
           <button className="menu-button" onClick={() => setMenuOpen(!menuOpen)} aria-label="Toggle menu">{menuOpen ? <X /> : <Menu />}</button>
         </div>
       </header>
@@ -224,7 +265,6 @@ function App() {
       <section className="lab section" id="lab"><div className="lab-intro"><span className="eyebrow light">AiLit Reading Lab · 01</span><h2>New ways to read.<br />New ways to write.</h2><p>Artificial Intelligence can offer fresh insight into literature by revealing hidden patterns, making unexpected connections, and inviting writers to explore possibilities beyond familiar habits.</p><div className="principles"><span><Feather size={16} /> Human-led</span><span><Sparkles size={16} /> Exploratory</span><span><AudioLines size={16} /> Creative</span></div></div><div className="reader"><div className="reader-label">Artificial Intelligence and literary imagination</div><blockquote>“AI does not decide what a story means. It gives readers and writers another way to ask what it might become.”</blockquote><div className="lens-tabs">{Object.keys(lensText).map((item) => <button className={lens === item ? 'active' : ''} onClick={() => setLens(item)} key={item}>{item === 'Close' ? 'Discover patterns' : item === 'Machine' ? 'Find connections' : 'Create possibilities'}</button>)}</div><div className="lens-output" key={lens}><Sparkles size={17} /><p>{lensText[lens]}</p></div></div></section>
       <footer><div className="footer-brand"><img src="/ailit-logo.png" alt="" /><span>AiLit</span><p>A literary magazine for language, imagination, and Artificial Intelligence.</p></div><div className="copyright">© 2026 AiLit Magazine <span>Made by humans, with questions.</span></div></footer>
 
-      {loginOpen && <div className="login-backdrop" onMouseDown={() => setLoginOpen(false)}><form className="login-panel" onSubmit={login} onMouseDown={(event) => event.stopPropagation()}><button type="button" className="admin-close" onClick={() => setLoginOpen(false)}><X /></button><span className="eyebrow">Admin access</span><h2>Sign in</h2><label>Email<input type="email" value={authForm.email} onChange={(event) => setAuthForm({ ...authForm, email: event.target.value })} required /></label><label>Password<input type="password" value={authForm.password} onChange={(event) => setAuthForm({ ...authForm, password: event.target.value })} required /></label>{message && <p className="form-message">{message}</p>}<button className="solid-button" type="submit">Continue <ArrowRight size={18} /></button></form></div>}
     </main>
   );
 }
