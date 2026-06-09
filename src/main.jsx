@@ -260,6 +260,9 @@ function App() {
             <p>AiLit stands for Artificial Intelligence and Literature. It is a literary magazine that encourages a thoughtful fusion of computational tools with human storytelling, poetry, criticism, and imagination.</p>
             <p>We believe this meeting matters because AI can help readers discover new patterns and help writers approach language from unfamiliar directions. AiLit keeps human voice, judgment, and creativity at the centre while exploring how technology can open new possibilities for literature.</p>
           </div>
+          <figure className="about-art">
+            <img src="/about-ai-literature.png" alt="Abstract artwork of pages and neural traces representing AI and literature" />
+          </figure>
         </section>
       </main>
     );
