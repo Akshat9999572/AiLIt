@@ -23,15 +23,39 @@ function App() {
   const [adminChecked, setAdminChecked] = useState(false);
   const [authForm, setAuthForm] = useState({ email: '', password: '' });
   const [message, setMessage] = useState('');
+  const [installPrompt, setInstallPrompt] = useState(null);
+  const [installMessage, setInstallMessage] = useState('');
+  const [isStandalone, setIsStandalone] = useState(
+    window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone === true
+  );
   const [saving, setSaving] = useState(false);
   const [imageFile, setImageFile] = useState(null);
   const [draft, setDraft] = useState({ type: 'Article', title: '', author: '', introduction: '', image: '' });
 
   useEffect(() => {
     loadStories();
+    if ('serviceWorker' in navigator) {
+      navigator.serviceWorker.register('/sw.js').catch(() => {});
+    }
+    const onBeforeInstallPrompt = (event) => {
+      event.preventDefault();
+      setInstallPrompt(event);
+      setInstallMessage('');
+    };
+    const onInstalled = () => {
+      setInstallPrompt(null);
+      setIsStandalone(true);
+      setInstallMessage('AiLit is installed.');
+    };
+    window.addEventListener('beforeinstallprompt', onBeforeInstallPrompt);
+    window.addEventListener('appinstalled', onInstalled);
     supabase.auth.getSession().then(({ data }) => { setSession(data.session); setAuthReady(true); });
     const { data: listener } = supabase.auth.onAuthStateChange((_event, nextSession) => { setSession(nextSession); setAuthReady(true); });
-    return () => listener.subscription.unsubscribe();
+    return () => {
+      listener.subscription.unsubscribe();
+      window.removeEventListener('beforeinstallprompt', onBeforeInstallPrompt);
+      window.removeEventListener('appinstalled', onInstalled);
+    };
   }, []);
 
   useEffect(() => {
@@ -57,6 +81,24 @@ function App() {
   const scrollTo = (id) => {
     document.getElementById(id)?.scrollIntoView({ behavior: 'smooth' });
     setMenuOpen(false);
+  };
+
+  const installWebApp = async () => {
+    setMenuOpen(false);
+    if (isStandalone) {
+      setInstallMessage('AiLit is already running as an installed web app.');
+      return;
+    }
+    if (!installPrompt) {
+      setInstallMessage('Install is available from your browser menu if the prompt does not appear automatically.');
+      return;
+    }
+    installPrompt.prompt();
+    const choice = await installPrompt.userChoice;
+    if (choice.outcome === 'accepted') {
+      setInstallPrompt(null);
+      setInstallMessage('AiLit is installing.');
+    }
   };
 
   const login = async (event) => {
@@ -253,6 +295,7 @@ function App() {
           <button onClick={() => { setView('home'); setMenuOpen(false); setTimeout(() => scrollTo('top'), 0); }}>Home</button>
           <button onClick={() => scrollTo('journal')}>New Writing</button>
           <button onClick={() => { setView('about'); setMenuOpen(false); }}>About</button>
+          <button onClick={installWebApp}>{isStandalone ? 'Open Installed App' : 'Install Web App'}</button>
         </nav>
         <div className="header-actions">
           <button className="menu-button" onClick={() => setMenuOpen(!menuOpen)} aria-label="Toggle menu">{menuOpen ? <X /> : <Menu />}</button>
@@ -264,6 +307,7 @@ function App() {
       <section className="journal section" id="journal"><div className="section-heading"><div><h2>New writing</h2></div></div>{stories.length ? <div className="story-grid">{stories.map((story) => <article className="story story-link" key={story.id} tabIndex="0" role="link" onClick={() => { setSelectedStory(story); setView('story'); window.scrollTo(0, 0); }} onKeyDown={(event) => { if (event.key === 'Enter') { setSelectedStory(story); setView('story'); window.scrollTo(0, 0); } }}><div className="story-art rust">{story.image_url ? <img src={story.image_url} alt="" /> : <div className="glyph">“</div>}</div><div className="story-meta"><span>{story.type}</span><span>Read <ArrowRight size={13} /></span></div><h3>{story.title}</h3><p>{story.introduction}</p><div className="author">By {story.author}</div></article>)}</div> : <div className="empty-writing"><p>New work will appear here.</p></div>}</section>
       <section className="lab section" id="lab"><div className="lab-intro"><span className="eyebrow light">AiLit Reading Lab · 01</span><h2>New ways to read.<br />New ways to write.</h2><p>Artificial Intelligence can offer fresh insight into literature by revealing hidden patterns, making unexpected connections, and inviting writers to explore possibilities beyond familiar habits.</p><div className="principles"><span><Feather size={16} /> Human-led</span><span><Sparkles size={16} /> Exploratory</span><span><AudioLines size={16} /> Creative</span></div></div><div className="reader"><div className="reader-label">Artificial Intelligence and literary imagination</div><blockquote>“AI does not decide what a story means. It gives readers and writers another way to ask what it might become.”</blockquote><div className="lens-tabs">{Object.keys(lensText).map((item) => <button className={lens === item ? 'active' : ''} onClick={() => setLens(item)} key={item}>{item === 'Close' ? 'Discover patterns' : item === 'Machine' ? 'Find connections' : 'Create possibilities'}</button>)}</div><div className="lens-output" key={lens}><Sparkles size={17} /><p>{lensText[lens]}</p></div></div></section>
       <footer><div className="footer-brand"><img src="/ailit-logo.png" alt="" /><span>AiLit</span><p>A literary magazine for language, imagination, and Artificial Intelligence.</p></div><div className="copyright">© 2026 AiLit Magazine <span>Made by humans, with questions.</span></div></footer>
+      {installMessage && <div className="install-toast" role="status">{installMessage}</div>}
 
     </main>
   );
