@@ -291,6 +291,10 @@ function App() {
     <main>
       <header className="site-header">
         <button className="brand" onClick={() => scrollTo('top')} aria-label="AiLit home"><img src="/ailit-logo.png" alt="" /><span>AiLit</span></button>
+        <button className="nav-title" onClick={() => scrollTo('top')} aria-label="AiLit home">
+          <span className="round-mark" aria-hidden="true"><span /></span>
+          <span>Artificial Intelligence<br />& Literature</span>
+        </button>
         <nav className={menuOpen ? 'nav open' : 'nav'}>
           <button onClick={() => { setView('home'); setMenuOpen(false); setTimeout(() => scrollTo('top'), 0); }}>Home</button>
           <button onClick={() => scrollTo('journal')}>New Writing</button>
