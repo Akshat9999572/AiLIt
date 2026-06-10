@@ -50,7 +50,36 @@ Deno.serve(async (request) => {
         { onConflict: "email" },
       );
       if (error) throw error;
-      return respond({ message: "You are subscribed to AiLit." }, 200, origin);
+
+      const resendApiKey = Deno.env.get("RESEND_API_KEY");
+      if (!resendApiKey) {
+        return respond({
+          message: "You are subscribed to AiLit.",
+          confirmationSent: false,
+        }, 200, origin);
+      }
+
+      const from = Deno.env.get("NEWSLETTER_FROM") || "AiLit <onboarding@resend.dev>";
+      const confirmationResponse = await fetch("https://api.resend.com/emails", {
+        method: "POST",
+        headers: {
+          "Authorization": `Bearer ${resendApiKey}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          from,
+          to: email,
+          subject: "Welcome to the AiLit newsletter",
+          html: `<div style="background:#f4efe5;padding:40px 20px;color:#171713;font-family:Georgia,serif"><div style="max-width:600px;margin:auto"><p style="font:12px Arial,sans-serif;letter-spacing:.14em;text-transform:uppercase">AiLit newsletter</p><h1 style="font-size:42px;line-height:1.05;margin:24px 0">You are on the reading list.</h1><p style="font-size:18px;line-height:1.6">Thank you for subscribing. We will send you a quiet note whenever a new article or poem is published.</p><p style="margin:34px 0"><a href="https://ailit-xi.vercel.app" style="background:#171713;color:#fff;padding:14px 20px;text-decoration:none;font:14px Arial,sans-serif">Visit AiLit</a></p></div></div>`,
+        }),
+      });
+
+      return respond({
+        message: confirmationResponse.ok
+          ? "You are subscribed. Check your inbox for confirmation."
+          : "You are subscribed, but the confirmation email could not be delivered.",
+        confirmationSent: confirmationResponse.ok,
+      }, 200, origin);
     }
 
     if (payload.action === "unsubscribe") {
