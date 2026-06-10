@@ -339,6 +339,7 @@ function App() {
         <nav className={menuOpen ? 'nav open' : 'nav'}>
           <button onClick={() => { setView('home'); setMenuOpen(false); setTimeout(() => scrollTo('top'), 0); }}>Home</button>
           <button onClick={() => scrollTo('journal')}>New Writing</button>
+          <button onClick={() => scrollTo('newsletter')}>Newsletter</button>
           <button onClick={() => { setView('about'); setMenuOpen(false); }}>About</button>
           <button onClick={installWebApp}>{isStandalone ? 'Open Installed App' : 'Install Web App'}</button>
         </nav>
