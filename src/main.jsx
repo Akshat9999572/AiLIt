@@ -25,6 +25,9 @@ function App() {
   const [message, setMessage] = useState('');
   const [installPrompt, setInstallPrompt] = useState(null);
   const [installMessage, setInstallMessage] = useState('');
+  const [newsletterEmail, setNewsletterEmail] = useState('');
+  const [newsletterMessage, setNewsletterMessage] = useState('');
+  const [newsletterSaving, setNewsletterSaving] = useState(false);
   const [isStandalone, setIsStandalone] = useState(
     window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone === true
   );
@@ -34,6 +37,16 @@ function App() {
 
   useEffect(() => {
     loadStories();
+    const unsubscribeToken = new URLSearchParams(window.location.search).get('unsubscribe');
+    if (unsubscribeToken) {
+      supabase.functions.invoke('newsletter', {
+        body: { action: 'unsubscribe', token: unsubscribeToken },
+      }).then(({ data, error }) => {
+        setNewsletterMessage(error ? 'We could not unsubscribe this address. Please try again.' : data.message);
+        window.history.replaceState({}, '', '/');
+        setTimeout(() => document.getElementById('newsletter')?.scrollIntoView(), 0);
+      });
+    }
     if ('serviceWorker' in navigator) {
       navigator.serviceWorker.register('/sw.js').catch(() => {});
     }
@@ -76,6 +89,13 @@ function App() {
   const loadStories = async () => {
     const { data } = await supabase.from('writings').select('*').eq('published', true).order('created_at', { ascending: false });
     setStories(data || []);
+    const storyId = new URLSearchParams(window.location.search).get('story');
+    const linkedStory = data?.find((story) => story.id === storyId);
+    if (linkedStory) {
+      setSelectedStory(linkedStory);
+      setView('story');
+      window.history.replaceState({}, '', '/');
+    }
   };
 
   const scrollTo = (id) => {
@@ -142,7 +162,7 @@ function App() {
       }
       imageUrl = supabase.storage.from('writing-images').getPublicUrl(path).data.publicUrl;
     }
-    const { error } = await supabase.from('writings').insert({
+    const { data: publishedStory, error } = await supabase.from('writings').insert({
       type: draft.type,
       title: draft.title,
       author: draft.author,
@@ -150,14 +170,32 @@ function App() {
       body: editorRef.current.innerHTML,
       image_url: imageUrl,
       created_by: session.user.id,
-    });
+    }).select().single();
     setSaving(false);
     if (error) return setMessage(error.message);
     setDraft({ type: 'Article', title: '', author: '', introduction: '', image: '' });
     setImageFile(null);
     await loadStories();
     if (editorRef.current) editorRef.current.innerHTML = '';
-    setMessage('Published successfully.');
+    const { data: newsletterData, error: newsletterError } = await supabase.functions.invoke('newsletter', {
+      body: { action: 'notify', story: publishedStory },
+    });
+    setMessage(newsletterError
+      ? 'Published successfully. Newsletter delivery is not configured yet.'
+      : `Published successfully. Newsletter sent to ${newsletterData.sent} subscriber${newsletterData.sent === 1 ? '' : 's'}.`);
+  };
+
+  const subscribeToNewsletter = async (event) => {
+    event.preventDefault();
+    setNewsletterSaving(true);
+    setNewsletterMessage('');
+    const { data, error } = await supabase.functions.invoke('newsletter', {
+      body: { action: 'subscribe', email: newsletterEmail },
+    });
+    setNewsletterSaving(false);
+    if (error) return setNewsletterMessage('Subscription failed. Please check the email and try again.');
+    setNewsletterEmail('');
+    setNewsletterMessage(data.message);
   };
 
   const deleteWriting = async (story) => {
@@ -313,6 +351,18 @@ function App() {
       <section className="manifesto"><Asterisk size={24} /><p>We believe technology does not diminish literature's mystery. It gives the mystery <em>new rooms</em> to inhabit.</p></section>
       <section className="journal section" id="journal"><div className="section-heading"><div><h2>New writing</h2></div></div>{stories.length ? <div className="story-grid">{stories.map((story) => <article className="story story-link" key={story.id} tabIndex="0" role="link" onClick={() => { setSelectedStory(story); setView('story'); window.scrollTo(0, 0); }} onKeyDown={(event) => { if (event.key === 'Enter') { setSelectedStory(story); setView('story'); window.scrollTo(0, 0); } }}><div className="story-art rust">{story.image_url ? <img src={story.image_url} alt="" /> : <div className="glyph">“</div>}</div><div className="story-meta"><span>{story.type}</span><span>Read <ArrowRight size={13} /></span></div><h3>{story.title}</h3><p>{story.introduction}</p><div className="author">By {story.author}</div></article>)}</div> : <div className="empty-writing"><p>New work will appear here.</p></div>}</section>
       <section className="lab section" id="lab"><div className="lab-intro"><span className="eyebrow light">AiLit Reading Lab · 01</span><h2>New ways to read.<br />New ways to write.</h2><p>Artificial Intelligence can offer fresh insight into literature by revealing hidden patterns, making unexpected connections, and inviting writers to explore possibilities beyond familiar habits.</p><div className="principles"><span><Feather size={16} /> Human-led</span><span><Sparkles size={16} /> Exploratory</span><span><AudioLines size={16} /> Creative</span></div></div><div className="reader"><div className="reader-label">Artificial Intelligence and literary imagination</div><blockquote>“AI does not decide what a story means. It gives readers and writers another way to ask what it might become.”</blockquote><div className="lens-tabs">{Object.keys(lensText).map((item) => <button className={lens === item ? 'active' : ''} onClick={() => setLens(item)} key={item}>{item === 'Close' ? 'Discover patterns' : item === 'Machine' ? 'Find connections' : 'Create possibilities'}</button>)}</div><div className="lens-output" key={lens}><Sparkles size={17} /><p>{lensText[lens]}</p></div></div></section>
+      <section className="newsletter section" id="newsletter">
+        <img src="/ailit-logo.png" alt="" />
+        <span className="eyebrow">The AiLit newsletter</span>
+        <h2>New writing,<br />once in a while.</h2>
+        <p>Receive a quiet note whenever a new article or poem is published.</p>
+        <form onSubmit={subscribeToNewsletter}>
+          <label className="sr-only" htmlFor="newsletter-email">Email address</label>
+          <input id="newsletter-email" type="email" placeholder="Your email address" value={newsletterEmail} onChange={(event) => setNewsletterEmail(event.target.value)} required />
+          <button type="submit" aria-label="Subscribe" disabled={newsletterSaving}>{newsletterSaving ? 'Joining...' : <ArrowRight />}</button>
+        </form>
+        {newsletterMessage && <p className="newsletter-message" role="status">{newsletterMessage}</p>}
+      </section>
       <footer><div className="footer-brand"><img src="/ailit-logo.png" alt="" /><span>AiLit</span><p>A literary magazine for language, imagination, and Artificial Intelligence.</p></div><div className="copyright">© 2026 AiLit Magazine <span>Made by humans, with questions.</span></div></footer>
       {installMessage && <div className="install-toast" role="status">{installMessage}</div>}
 
