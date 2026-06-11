@@ -12,6 +12,8 @@ const lensText = {
 
 function App() {
   const editorRef = useRef(null);
+  const inlineImageInputRef = useRef(null);
+  const editorSelectionRef = useRef(null);
   const [menuOpen, setMenuOpen] = useState(false);
   const [view, setView] = useState(window.location.pathname === '/admin' ? 'admin' : 'home');
   const [lens, setLens] = useState('Close');
@@ -32,6 +34,7 @@ function App() {
     window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone === true
   );
   const [saving, setSaving] = useState(false);
+  const [inlineImageUploading, setInlineImageUploading] = useState(false);
   const [imageFile, setImageFile] = useState(null);
   const [draft, setDraft] = useState({ type: 'Article', title: '', author: '', introduction: '', image: '' });
 
@@ -144,6 +147,57 @@ function App() {
   const formatText = (command, value) => {
     editorRef.current?.focus();
     document.execCommand(command, false, value);
+  };
+
+  const chooseInlineImage = () => {
+    editorSelectionRef.current = null;
+    const selection = window.getSelection();
+    if (selection?.rangeCount && editorRef.current?.contains(selection.anchorNode)) {
+      editorSelectionRef.current = selection.getRangeAt(0).cloneRange();
+    }
+    inlineImageInputRef.current?.click();
+  };
+
+  const insertInlineImage = async (event) => {
+    const file = event.target.files?.[0];
+    event.target.value = '';
+    if (!file || !isAdmin || !session?.user) return;
+    if (!file.type.startsWith('image/') && !/\.(heic|heif|tif|tiff|bmp|svg)$/i.test(file.name)) {
+      return setMessage('Choose a valid image file.');
+    }
+    if (file.size > 10 * 1024 * 1024) return setMessage('Inline images must be smaller than 10 MB.');
+
+    setInlineImageUploading(true);
+    setMessage('');
+    const safeName = file.name.replace(/[^a-zA-Z0-9._-]/g, '-');
+    const path = `${session.user.id}/inline/${crypto.randomUUID()}-${safeName}`;
+    const { error: uploadError } = await supabase.storage.from('writing-images').upload(path, file);
+    if (uploadError) {
+      setInlineImageUploading(false);
+      return setMessage(uploadError.message);
+    }
+
+    const imageUrl = supabase.storage.from('writing-images').getPublicUrl(path).data.publicUrl;
+    const image = document.createElement('img');
+    image.src = imageUrl;
+    image.alt = '';
+    image.className = 'inline-writing-image';
+
+    editorRef.current?.focus();
+    const selection = window.getSelection();
+    selection?.removeAllRanges();
+    if (editorSelectionRef.current) {
+      selection?.addRange(editorSelectionRef.current);
+      editorSelectionRef.current.deleteContents();
+      editorSelectionRef.current.insertNode(image);
+      editorSelectionRef.current.setStartAfter(image);
+      editorSelectionRef.current.collapse(true);
+      selection?.removeAllRanges();
+      selection?.addRange(editorSelectionRef.current);
+    } else {
+      editorRef.current?.append(image);
+    }
+    setInlineImageUploading(false);
   };
 
   const publishWriting = async (event) => {
@@ -262,6 +316,9 @@ function App() {
                 <button type="button" onClick={() => formatText('italic')} title="Italic"><Italic /></button>
                 <button type="button" onClick={() => formatText('formatBlock', 'h2')} title="Heading"><Heading2 /></button>
                 <button type="button" onClick={() => formatText('insertUnorderedList')} title="List"><List /></button>
+                <button type="button" onMouseDown={(event) => event.preventDefault()} onClick={chooseInlineImage} title="Insert image" disabled={inlineImageUploading}><ImagePlus /></button>
+                <input ref={inlineImageInputRef} className="inline-image-input" type="file" accept="image/*,.heic,.heif,.tif,.tiff,.bmp,.svg" onChange={insertInlineImage} />
+                {inlineImageUploading && <span className="toolbar-status">Uploading image...</span>}
               </div>
               <div ref={editorRef} className={`rich-editor ${draft.type === 'Poem' ? 'poem-editor' : ''}`} contentEditable suppressContentEditableWarning data-placeholder={draft.type === 'Poem' ? 'Begin your poem...' : 'Begin your article...'} />
             </div>
