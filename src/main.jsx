@@ -14,12 +14,11 @@ function AnalogueWriter() {
   return (
     <section className="analogue-writer" aria-labelledby="analogue-writer-title">
       <div className="analogue-copy">
-        <span className="eyebrow">Machine for unfinished sentences</span>
-        <h2 id="analogue-writer-title">Language,<br />in motion.</h2>
-        <p>An analogue computer dreams in fragments, feeding possible sentences back into the human imagination.</p>
+        <span className="eyebrow">A dialogue in language</span>
+        <h2 id="analogue-writer-title">The machine predicts<br />the next word.<br /><em>We decide what it means.</em></h2>
       </div>
       <div className="analogue-stage">
-        <svg className="analogue-machine" viewBox="0 0 760 560" role="img" aria-label="Animated analogue computer printing strips of literary text">
+        <svg className="analogue-machine" viewBox="0 0 760 560" role="img" aria-label="Animated old desktop computer producing strips of literary text">
           <defs>
             <filter id="paper-shadow" x="-30%" y="-30%" width="160%" height="180%">
               <feDropShadow dx="0" dy="8" stdDeviation="6" floodColor="#171713" floodOpacity=".2" />
@@ -29,46 +28,45 @@ function AnalogueWriter() {
             </pattern>
           </defs>
 
-          <g className="text-ribbons" filter="url(#paper-shadow)">
+          <g className="text-ribbons crt-ribbons" filter="url(#paper-shadow)">
             <g className="text-ribbon ribbon-one">
-              <rect x="430" y="112" width="245" height="54" rx="2" />
-              <text x="450" y="144">memory enters the room</text>
+              <rect x="426" y="146" width="245" height="54" rx="2" />
+              <text x="446" y="178">memory enters the sentence</text>
             </g>
             <g className="text-ribbon ribbon-two">
-              <rect x="420" y="178" width="280" height="54" rx="2" />
-              <text x="440" y="210">and language changes shape</text>
+              <rect x="416" y="212" width="280" height="54" rx="2" />
+              <text x="436" y="244">language answers with a question</text>
             </g>
             <g className="text-ribbon ribbon-three">
-              <rect x="436" y="244" width="220" height="54" rx="2" />
-              <text x="456" y="276">who is imagining whom?</text>
+              <rect x="432" y="278" width="220" height="54" rx="2" />
+              <text x="452" y="310">who is imagining whom?</text>
             </g>
           </g>
 
-          <g className="machine-body">
-            <path className="machine-shadow" d="M118 147h365l48 70v252H92V211z" />
-            <path className="machine-shell" d="M102 126h365l48 70v252H76V190z" />
-            <path className="machine-top" d="M102 126h365l48 70H76z" />
-            <rect className="machine-panel" x="111" y="198" width="318" height="202" rx="4" />
-            <rect className="machine-screen" x="143" y="224" width="164" height="106" rx="3" />
-            <path className="screen-wave" d="M158 279c18-34 35 34 53 0s35 34 53 0 22 8 29-15" />
-            <circle className="screen-dot dot-one" cx="177" cy="258" r="4" />
-            <circle className="screen-dot dot-two" cx="244" cy="296" r="4" />
-            <rect className="machine-vents" x="332" y="225" width="66" height="105" fill="url(#vent-lines)" />
-            <g className="machine-dials">
-              <circle cx="151" cy="365" r="17" />
-              <path d="M151 365l8-10" />
-              <circle cx="210" cy="365" r="17" />
-              <path d="M210 365l-7-11" />
-              <circle cx="269" cy="365" r="17" />
-              <path d="M269 365l11 2" />
+          <g className="machine-body crt-computer">
+            <path className="crt-shadow" d="M126 104h340l44 42v272H91V147z" />
+            <path className="crt-shell" d="M109 87h340l44 42v272H74V130z" />
+            <path className="crt-side" d="M449 87l44 42v272l-44-19z" />
+            <rect className="crt-bezel" x="116" y="126" width="290" height="209" rx="11" />
+            <path className="crt-screen" d="M143 151h236c13 0 19 12 19 79s-6 79-19 79H143c-13 0-19-12-19-79s6-79 19-79z" />
+            <g className="crt-copy">
+              <text x="153" y="190">AILIT_OS  /  LANGUAGE MODEL</text>
+              <text x="153" y="226">&gt; COMPLETE THE THOUGHT:</text>
+              <text x="153" y="260">“A WORD BECOMES HUMAN WHEN</text>
+              <text x="153" y="281"> SOMEONE CHOOSES TO MEAN IT.”</text>
+              <rect className="crt-cursor" x="153" y="293" width="11" height="4" />
             </g>
-            <g className="machine-lights">
-              <circle cx="345" cy="365" r="7" />
-              <circle cx="374" cy="365" r="7" />
-              <circle cx="403" cy="365" r="7" />
+            <rect className="crt-drive" x="122" y="352" width="139" height="17" rx="2" />
+            <rect className="crt-drive-slot" x="137" y="358" width="109" height="4" />
+            <circle className="crt-power" cx="382" cy="359" r="8" />
+            <circle className="crt-power-light" cx="411" cy="359" r="4" />
+            <rect className="paper-slot" x="405" y="150" width="31" height="160" rx="3" />
+            <path className="crt-base" d="M147 401h277l28 32H122z" />
+            <path className="crt-keyboard" d="M103 435h375l87 70H55z" />
+            <g className="keyboard-keys">
+              <path d="M98 454h351M83 473h390M70 492h427" />
+              <path d="M126 447l-11 55M165 447l-7 55M204 447l-4 55M243 447v55M282 447l4 55M321 447l7 55M360 447l11 55M399 447l15 55M438 447l19 55" />
             </g>
-            <rect className="paper-slot" x="419" y="149" width="36" height="178" rx="3" />
-            <path className="machine-leg" d="M113 448h56l-12 49h-57zM421 448h56l13 49h-57z" />
           </g>
 
           <g className="loose-pages">
@@ -76,7 +74,7 @@ function AnalogueWriter() {
             <path d="M550 428l63-15M555 445l50-12M561 461l58-14" />
           </g>
         </svg>
-        <span className="analogue-caption">INPUT: HUMAN QUESTION&nbsp;&nbsp; OUTPUT: ANOTHER QUESTION</span>
+        <span className="analogue-caption">PROMPT: A HUMAN QUESTION&nbsp;&nbsp; RESPONSE: A NEW POSSIBILITY</span>
       </div>
     </section>
   );

@@ -51,24 +51,24 @@ button { cursor:pointer; }
 .manifesto em { color:#d8664e; font-weight:500; }
 .analogue-writer { min-height:720px; padding:90px 6vw; display:grid; grid-template-columns:.65fr 1.35fr; align-items:center; gap:4vw; background:#d9d4c8; overflow:hidden; }
 .analogue-copy { position:relative; z-index:2; }
-.analogue-copy h2 { font:500 clamp(58px,7vw,108px)/.88 var(--serif); letter-spacing:-.055em; margin:22px 0 32px; }
-.analogue-copy p { max-width:430px; font:17px/1.7 var(--serif); color:#4f4c45; }
+.analogue-copy h2 { font:500 clamp(50px,5.8vw,88px)/.94 var(--serif); letter-spacing:-.05em; margin:22px 0 32px; }
+.analogue-copy h2 em { color:var(--red); font-weight:500; }
 .analogue-stage { min-width:0; position:relative; }
 .analogue-machine { display:block; width:100%; max-height:680px; overflow:visible; }
-.machine-shadow { fill:#8d877d; transform:translate(16px,16px); }
-.machine-shell { fill:#a94f4d; stroke:#171713; stroke-width:3; }
-.machine-top { fill:#c66a5d; stroke:#171713; stroke-width:3; }
-.machine-panel { fill:#d8cdb9; stroke:#171713; stroke-width:3; }
-.machine-screen { fill:#1b2523; stroke:#171713; stroke-width:3; }
-.screen-wave { fill:none; stroke:#d8cdb9; stroke-width:3; stroke-linecap:round; stroke-dasharray:250; animation:screenSignal 3.4s linear infinite; }
-.screen-dot { fill:#d8664e; animation:signalBlink 1.4s steps(2,end) infinite; }
-.dot-two { animation-delay:.5s; }
-.machine-vents { stroke:#171713; stroke-width:2; }
-.machine-dials circle { fill:#ece5d7; stroke:#171713; stroke-width:3; }
-.machine-dials path { stroke:#171713; stroke-width:3; stroke-linecap:round; transform-box:fill-box; transform-origin:center; animation:dialTurn 5s ease-in-out infinite alternate; }
-.machine-lights circle { fill:#1b2523; stroke:#171713; stroke-width:2; animation:lightRun 1.8s steps(2,end) infinite; }
-.machine-lights circle:nth-child(2) { animation-delay:.3s; fill:#d8664e; }
-.machine-lights circle:nth-child(3) { animation-delay:.6s; }
+.crt-shadow { fill:#8d877d; transform:translate(15px,16px); }
+.crt-shell { fill:#d2c5a8; stroke:#171713; stroke-width:3; }
+.crt-side { fill:#aa9b7d; stroke:#171713; stroke-width:3; }
+.crt-bezel { fill:#b9aa8d; stroke:#171713; stroke-width:3; }
+.crt-screen { fill:#1b2523; stroke:#171713; stroke-width:3; }
+.crt-copy text { fill:#b9d0ae; font:11px var(--mono); letter-spacing:.04em; }
+.crt-cursor { fill:#d8664e; animation:signalBlink 1s steps(2,end) infinite; }
+.crt-drive { fill:#9f9278; stroke:#171713; stroke-width:2; }
+.crt-drive-slot { fill:#171713; }
+.crt-power { fill:#b7aa91; stroke:#171713; stroke-width:2; }
+.crt-power-light { fill:#d8664e; animation:signalBlink 1.8s steps(2,end) infinite; }
+.crt-base { fill:#b5a78b; stroke:#171713; stroke-width:3; }
+.crt-keyboard { fill:#d2c5a8; stroke:#171713; stroke-width:3; }
+.keyboard-keys path { fill:none; stroke:#736b5b; stroke-width:2; }
 .paper-slot { fill:#171713; }
 .machine-leg { fill:#1b2523; stroke:#171713; stroke-width:3; }
 .text-ribbon { animation:textFeed 5.4s cubic-bezier(.45,0,.25,1) infinite; transform-origin:430px 150px; }
@@ -81,10 +81,7 @@ button { cursor:pointer; }
 .loose-pages path:last-child { fill:none; stroke:#171713; stroke-width:2; }
 .analogue-caption { display:block; margin-top:-20px; text-align:right; font:9px var(--mono); letter-spacing:.13em; }
 @keyframes textFeed { 0% { opacity:0; transform:translateX(-105px) scaleX(.2); } 15% { opacity:1; } 55% { transform:translateX(0) scaleX(1); } 82% { opacity:1; transform:translateX(22px) scaleX(1); } 100% { opacity:0; transform:translateX(70px) translateY(18px) rotate(2deg); } }
-@keyframes screenSignal { from { stroke-dashoffset:250; } to { stroke-dashoffset:0; } }
 @keyframes signalBlink { 50% { opacity:.15; } }
-@keyframes dialTurn { from { transform:rotate(-22deg); } to { transform:rotate(32deg); } }
-@keyframes lightRun { 50% { fill:#d8664e; } }
 @keyframes pageFloat { 50% { transform:translateY(-8px) rotate(1deg); } }
 .section { padding:120px 6vw; }
 .section-heading { display:flex; justify-content:space-between; align-items:flex-end; margin-bottom:55px; }
@@ -276,8 +273,7 @@ footer a { color:inherit;text-decoration:none;display:block;font:14px var(--seri
   .manifesto { padding:62px 24px; }
   .manifesto p { font-size:clamp(30px,10vw,44px); line-height:1.14; }
   .analogue-writer { padding:62px 18px 38px; gap:16px; }
-  .analogue-copy h2 { font-size:clamp(52px,16vw,70px); margin:18px 0 24px; }
-  .analogue-copy p { font-size:15px; }
+  .analogue-copy h2 { font-size:clamp(43px,13vw,60px); margin:18px 0 24px; }
   .analogue-machine { width:118%; margin-left:-14%; }
   .analogue-caption { margin-top:-5px; text-align:center; font-size:8px; line-height:1.5; }
   .section { padding:68px 22px; }
@@ -348,7 +344,7 @@ footer a { color:inherit;text-decoration:none;display:block;font:14px var(--seri
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .screen-wave,.screen-dot,.machine-dials path,.machine-lights circle,.text-ribbon,.loose-pages { animation:none; }
+  .crt-cursor,.crt-power-light,.text-ribbon,.loose-pages { animation:none; }
   .text-ribbon { opacity:1; transform:none; }
 }
 
