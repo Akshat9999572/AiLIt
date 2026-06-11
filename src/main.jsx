@@ -354,9 +354,8 @@ function App() {
   const submitWriting = async (event) => {
     event.preventDefault();
     if (!submissionPicture || !submissionManuscript) return setSubmissionMessage('Upload both your picture and manuscript.');
-    if (submissionPicture.size > 5 * 1024 * 1024 || submissionManuscript.size > 5 * 1024 * 1024) {
-      return setSubmissionMessage('Each uploaded file must be 5 MB or smaller.');
-    }
+    if (submissionPicture.size > 1024 * 1024) return setSubmissionMessage('Your picture must be 1 MB or smaller.');
+    if (submissionManuscript.size > 5 * 1024 * 1024) return setSubmissionMessage('Your manuscript must be 5 MB or smaller.');
     setSubmissionSaving(true);
     setSubmissionMessage('');
     const formData = new FormData();
@@ -533,7 +532,7 @@ function App() {
           <div className="submission-intro">
             <span className="eyebrow">Send us your work</span>
             <h1>Literature in conversation with intelligence.</h1>
-            <p>Submit an article, essay, story, or poem that explores language, imagination, literature, or Artificial Intelligence.</p>
+            <p>Submit an article, essay, story, or poem that explores the intersection of Artificial Intelligence and literature.</p>
           </div>
           <form className="submission-form" onSubmit={submitWriting}>
             <div className="submission-row">
@@ -546,7 +545,7 @@ function App() {
               <label className="submission-upload">
                 <ImagePlus size={25} />
                 <b>{submissionPicture ? submissionPicture.name : 'Upload your picture'}</b>
-                <span>JPG, PNG, WebP, or GIF, up to 5 MB</span>
+                <span>JPG, PNG, WebP, or GIF, up to 1 MB</span>
                 <input type="file" accept="image/jpeg,image/png,image/webp,image/gif" onChange={(event) => setSubmissionPicture(event.target.files?.[0] || null)} required />
               </label>
               <label className="submission-upload">

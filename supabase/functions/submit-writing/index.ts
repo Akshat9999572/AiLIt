@@ -55,8 +55,8 @@ Deno.serve(async (request) => {
     if (!shortBio || shortBio.length > 1000) {
       return respond({ error: "Short bio must be between 1 and 1000 characters." }, 400, origin);
     }
-    if (!(picture instanceof File) || !imageTypes.has(picture.type) || picture.size > 5 * 1024 * 1024) {
-      return respond({ error: "Upload a JPG, PNG, WebP, or GIF picture up to 5 MB." }, 400, origin);
+    if (!(picture instanceof File) || !imageTypes.has(picture.type) || picture.size > 1024 * 1024) {
+      return respond({ error: "Upload a JPG, PNG, WebP, or GIF picture up to 1 MB." }, 400, origin);
     }
     if (!(manuscript instanceof File) || !manuscriptTypes.has(manuscript.type) || manuscript.size > 5 * 1024 * 1024) {
       return respond({ error: "Upload a PDF, DOC, or DOCX manuscript up to 5 MB." }, 400, origin);
