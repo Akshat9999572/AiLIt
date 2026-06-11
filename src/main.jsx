@@ -86,7 +86,13 @@ function App() {
   const editorSelectionRef = useRef(null);
   const formattingSelectionRef = useRef(null);
   const [menuOpen, setMenuOpen] = useState(false);
-  const [view, setView] = useState(window.location.pathname === '/admin' ? 'admin' : 'home');
+  const routeView = () => {
+    if (window.location.pathname === '/admin') return 'admin';
+    if (window.location.pathname === '/about') return 'about';
+    if (window.location.pathname === '/submit') return 'submit';
+    return 'home';
+  };
+  const [view, setView] = useState(routeView);
   const [lens, setLens] = useState('Close');
   const [stories, setStories] = useState([]);
   const [selectedStory, setSelectedStory] = useState(null);
@@ -144,12 +150,19 @@ function App() {
     };
     window.addEventListener('beforeinstallprompt', onBeforeInstallPrompt);
     window.addEventListener('appinstalled', onInstalled);
+    const onPopState = () => {
+      setView(routeView());
+      setSelectedStory(null);
+      window.scrollTo(0, 0);
+    };
+    window.addEventListener('popstate', onPopState);
     supabase.auth.getSession().then(({ data }) => { setSession(data.session); setAuthReady(true); });
     const { data: listener } = supabase.auth.onAuthStateChange((_event, nextSession) => { setSession(nextSession); setAuthReady(true); });
     return () => {
       listener.subscription.unsubscribe();
       window.removeEventListener('beforeinstallprompt', onBeforeInstallPrompt);
       window.removeEventListener('appinstalled', onInstalled);
+      window.removeEventListener('popstate', onPopState);
     };
   }, []);
 
@@ -187,6 +200,14 @@ function App() {
   const scrollTo = (id) => {
     document.getElementById(id)?.scrollIntoView({ behavior: 'smooth' });
     setMenuOpen(false);
+  };
+
+  const navigateTo = (nextView, path) => {
+    if (window.location.pathname !== path) window.history.pushState({}, '', path);
+    setView(nextView);
+    setSelectedStory(null);
+    setMenuOpen(false);
+    window.scrollTo(0, 0);
   };
 
   const installWebApp = async () => {
@@ -547,9 +568,9 @@ function App() {
     return (
       <main className="about-page">
         <header className="editor-header">
-          <button className="brand" onClick={() => setView('home')}><img src="/ailit-logo.png" alt="" /><span>AiLit</span></button>
+          <button className="brand" onClick={() => navigateTo('home', '/')}><img src="/ailit-logo.png" alt="" /><span>AiLit</span></button>
           <span>About</span>
-          <button className="editor-exit" onClick={() => setView('home')}><X size={19} /> Close</button>
+          <button className="editor-exit" onClick={() => navigateTo('home', '/')}><X size={19} /> Close</button>
         </header>
         <section className="about-content">
           <span className="eyebrow">Artificial Intelligence · Literature</span>
@@ -570,9 +591,9 @@ function App() {
     return (
       <main className="submission-page">
         <header className="editor-header">
-          <button className="brand" onClick={() => setView('home')}><img src="/ailit-logo.png" alt="" /><span>AiLit</span></button>
+          <button className="brand" onClick={() => navigateTo('home', '/')}><img src="/ailit-logo.png" alt="" /><span>AiLit</span></button>
           <span>Submissions</span>
-          <button className="editor-exit" onClick={() => setView('home')}><X size={19} /> Close</button>
+          <button className="editor-exit" onClick={() => navigateTo('home', '/')}><X size={19} /> Close</button>
         </header>
         <section className="submission-content">
           <div className="submission-intro">
@@ -614,9 +635,9 @@ function App() {
     return (
       <main className="reading-page">
         <header className="editor-header">
-          <button className="brand" onClick={() => setView('home')}><img src="/ailit-logo.png" alt="" /><span>AiLit</span></button>
+          <button className="brand" onClick={() => navigateTo('home', '/')}><img src="/ailit-logo.png" alt="" /><span>AiLit</span></button>
           <span>{selectedStory.type}</span>
-          <button className="editor-exit" onClick={() => { setView('home'); setTimeout(() => scrollTo('journal'), 0); }}><X size={19} /> Close</button>
+          <button className="editor-exit" onClick={() => { navigateTo('home', '/'); setTimeout(() => scrollTo('journal'), 0); }}><X size={19} /> Close</button>
         </header>
         <article className={`reading-article ${selectedStory.type === 'Poem' ? 'reading-poem' : ''}`}>
           <div className="reading-heading">
@@ -641,11 +662,11 @@ function App() {
           <span>Artificial Intelligence<br />& Literature</span>
         </button>
         <nav className={menuOpen ? 'nav open' : 'nav'}>
-          <button onClick={() => { setView('home'); setMenuOpen(false); setTimeout(() => scrollTo('top'), 0); }}>Home</button>
+          <button onClick={() => { navigateTo('home', '/'); setTimeout(() => scrollTo('top'), 0); }}>Home</button>
           <button onClick={() => scrollTo('journal')}>New Writing</button>
           <button onClick={() => scrollTo('newsletter')}>Newsletter</button>
-          <button onClick={() => { setView('submit'); setMenuOpen(false); window.scrollTo(0, 0); }}>Submit</button>
-          <button onClick={() => { setView('about'); setMenuOpen(false); }}>About</button>
+          <button onClick={() => navigateTo('submit', '/submit')}>Submit</button>
+          <button onClick={() => navigateTo('about', '/about')}>About</button>
           <button onClick={installWebApp}>{isStandalone ? 'Open Installed App' : 'Install Web App'}</button>
         </nav>
         <div className="header-actions">
