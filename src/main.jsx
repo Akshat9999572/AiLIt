@@ -15,7 +15,7 @@ function AnalogueWriter() {
     <section className="analogue-writer" aria-labelledby="analogue-writer-title">
       <div className="analogue-copy">
         <span className="eyebrow">A dialogue in language</span>
-        <h2 id="analogue-writer-title">The machine predicts<br />the next word.<br /><em>We decide what it means.</em></h2>
+        <h2 id="analogue-writer-title">Language<br /><em>in Motion.</em></h2>
       </div>
       <div className="analogue-stage">
         <svg className="analogue-machine" viewBox="0 0 760 560" role="img" aria-label="Animated old desktop computer producing strips of literary text">

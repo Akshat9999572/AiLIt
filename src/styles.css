@@ -18,7 +18,7 @@ button { cursor:pointer; }
 .nav { display:none; position:absolute; top:86px; left:0; right:0; background:var(--paper); padding:24px 4vw; flex-direction:column; gap:0; border-bottom:1px solid var(--line); box-shadow:0 20px 40px rgba(23,23,20,.08); }
 .nav.open { display:flex; }
 .nav button,.text-button { border:0; background:none; font-size:13px; font-weight:700; }
-.nav button { width:100%; text-align:left; padding:18px 0; border-bottom:1px solid var(--line); }
+.nav button { width:100%; text-align:left; padding:18px 0; border-bottom:1px solid var(--line); color:var(--red); font-weight:800; }
 .nav button:last-child { border-bottom:0; }
 .nav button:hover,.text-button:hover { color:var(--red); }
 .header-actions { display:flex; align-items:center; justify-self:end; }
