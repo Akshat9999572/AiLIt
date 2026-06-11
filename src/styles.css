@@ -164,6 +164,22 @@ footer a { color:inherit;text-decoration:none;display:block;font:14px var(--seri
 .about-copy p { font:18px/1.75 var(--serif); margin:0; }
 .about-art { grid-column:2; margin:55px 0 0; max-width:760px; border:1px solid var(--line); padding:14px; background:#e8e1d4; }
 .about-art img { display:block; width:100%; aspect-ratio:1.45; object-fit:cover; }
+.submission-page { min-height:100vh; background:var(--paper); }
+.submission-content { max-width:1180px; margin:auto; padding:90px 5vw 130px; display:grid; grid-template-columns:.78fr 1.22fr; gap:9vw; }
+.submission-intro h1 { font:500 clamp(50px,6vw,88px)/.94 var(--serif); letter-spacing:-.05em; margin:22px 0 30px; }
+.submission-intro p { max-width:430px; font:17px/1.7 var(--serif); color:#646057; }
+.submission-form { display:grid; gap:28px; }
+.submission-form label { display:grid; gap:9px; font:10px var(--mono); text-transform:uppercase; letter-spacing:.1em; }
+.submission-form input,.submission-form textarea { width:100%; border:0; border-bottom:1px solid var(--line); background:transparent; padding:12px 2px; outline:0; font:17px var(--serif); text-transform:none; }
+.submission-form textarea { min-height:150px; resize:vertical; border:1px solid var(--line); padding:15px; }
+.submission-row { display:grid; grid-template-columns:1fr 1fr; gap:28px; }
+.submission-uploads { display:grid; grid-template-columns:1fr 1fr; gap:20px; }
+.submission-upload { min-height:175px; border:1px dashed #8f8a7e; display:flex!important; align-items:center; justify-content:center; text-align:center; padding:25px; position:relative; overflow:hidden; color:#68655e; }
+.submission-upload b { max-width:100%; overflow:hidden; text-overflow:ellipsis; font:16px var(--serif); text-transform:none; }
+.submission-upload span { font:9px/1.5 var(--mono); }
+.submission-upload input { position:absolute; inset:0; opacity:0; cursor:pointer; }
+.submission-note { margin:0; color:#777269; font:11px/1.6 var(--mono); }
+.submission-button { justify-self:end; }
 .reading-page { min-height:100vh; background:var(--paper); }
 .reading-article { max-width:1120px; margin:auto; padding:100px 6vw 150px; }
 .reading-heading { max-width:850px; margin:0 auto 70px; text-align:center; }
@@ -243,6 +259,7 @@ footer a { color:inherit;text-decoration:none;display:block;font:14px var(--seri
   .submit{grid-template-columns:1fr;gap:45px}footer{grid-template-columns:1fr}.footer-brand{grid-column:1/-1}.copyright{flex-direction:column;gap:12px}
   .empty-writing{align-items:flex-start;flex-direction:column;justify-content:center;gap:20px}.writing-editor{grid-template-columns:1fr;padding-top:60px}.editor-row{grid-template-columns:1fr}.editor-header>span{display:none}.editor-header{grid-template-columns:1fr 1fr}
   .about-content{grid-template-columns:1fr;padding-top:70px}.about-content>.eyebrow,.about-content h1,.about-copy,.about-art{grid-column:1}.about-content h1{margin-bottom:45px}.about-copy{grid-template-columns:1fr}
+  .submission-content{grid-template-columns:1fr;gap:55px;padding-top:70px}
   .reading-article{padding-top:70px}.reading-heading{margin-bottom:45px}.reading-image{margin-bottom:45px}.reading-body{font-size:18px}
 }
 
@@ -332,6 +349,11 @@ footer a { color:inherit;text-decoration:none;display:block;font:14px var(--seri
   .about-copy p { font-size:17px; line-height:1.7; }
   .about-art { margin-top:34px; padding:10px; }
   .about-art img { aspect-ratio:1.05; }
+  .submission-content { padding:54px 22px 78px; gap:40px; }
+  .submission-intro h1 { font-size:clamp(44px,13vw,60px); }
+  .submission-row,.submission-uploads { grid-template-columns:1fr; }
+  .submission-upload { min-height:145px; }
+  .submission-button { width:100%; justify-content:space-between; }
 
   .reading-article { padding:58px 22px 90px; }
   .reading-heading { text-align:left; margin-bottom:34px; }

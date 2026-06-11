@@ -101,6 +101,11 @@ function App() {
   const [newsletterEmail, setNewsletterEmail] = useState('');
   const [newsletterMessage, setNewsletterMessage] = useState('');
   const [newsletterSaving, setNewsletterSaving] = useState(false);
+  const [submission, setSubmission] = useState({ name: '', email: '', designation: '', shortBio: '' });
+  const [submissionPicture, setSubmissionPicture] = useState(null);
+  const [submissionManuscript, setSubmissionManuscript] = useState(null);
+  const [submissionMessage, setSubmissionMessage] = useState('');
+  const [submissionSaving, setSubmissionSaving] = useState(false);
   const [isStandalone, setIsStandalone] = useState(
     window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone === true
   );
@@ -346,6 +351,28 @@ function App() {
     setNewsletterMessage(data.message);
   };
 
+  const submitWriting = async (event) => {
+    event.preventDefault();
+    if (!submissionPicture || !submissionManuscript) return setSubmissionMessage('Upload both your picture and manuscript.');
+    if (submissionPicture.size > 5 * 1024 * 1024 || submissionManuscript.size > 5 * 1024 * 1024) {
+      return setSubmissionMessage('Each uploaded file must be 5 MB or smaller.');
+    }
+    setSubmissionSaving(true);
+    setSubmissionMessage('');
+    const formData = new FormData();
+    Object.entries(submission).forEach(([key, value]) => formData.append(key, value));
+    formData.append('picture', submissionPicture);
+    formData.append('manuscript', submissionManuscript);
+    const { data, error } = await supabase.functions.invoke('submit-writing', { body: formData });
+    setSubmissionSaving(false);
+    if (error) return setSubmissionMessage('The submission could not be completed. Please check the files and try again.');
+    setSubmission({ name: '', email: '', designation: '', shortBio: '' });
+    setSubmissionPicture(null);
+    setSubmissionManuscript(null);
+    event.currentTarget.reset();
+    setSubmissionMessage(data.message);
+  };
+
   const deleteWriting = async (story) => {
     if (!isAdmin || !window.confirm(`Delete "${story.title}"? This cannot be undone.`)) return;
     setMessage('');
@@ -494,6 +521,50 @@ function App() {
     );
   }
 
+  if (view === 'submit') {
+    return (
+      <main className="submission-page">
+        <header className="editor-header">
+          <button className="brand" onClick={() => setView('home')}><img src="/ailit-logo.png" alt="" /><span>AiLit</span></button>
+          <span>Submissions</span>
+          <button className="editor-exit" onClick={() => setView('home')}><X size={19} /> Close</button>
+        </header>
+        <section className="submission-content">
+          <div className="submission-intro">
+            <span className="eyebrow">Send us your work</span>
+            <h1>Literature in conversation with intelligence.</h1>
+            <p>Submit an article, essay, story, or poem that explores language, imagination, literature, or Artificial Intelligence.</p>
+          </div>
+          <form className="submission-form" onSubmit={submitWriting}>
+            <div className="submission-row">
+              <label>Name<input value={submission.name} onChange={(event) => setSubmission({ ...submission, name: event.target.value })} maxLength="120" required /></label>
+              <label>Email<input type="email" value={submission.email} onChange={(event) => setSubmission({ ...submission, email: event.target.value })} required /></label>
+            </div>
+            <label>Designation<input value={submission.designation} onChange={(event) => setSubmission({ ...submission, designation: event.target.value })} placeholder="Writer, student, researcher..." maxLength="160" required /></label>
+            <label>Short bio<textarea value={submission.shortBio} onChange={(event) => setSubmission({ ...submission, shortBio: event.target.value })} maxLength="1000" placeholder="Tell us a little about yourself." required /></label>
+            <div className="submission-uploads">
+              <label className="submission-upload">
+                <ImagePlus size={25} />
+                <b>{submissionPicture ? submissionPicture.name : 'Upload your picture'}</b>
+                <span>JPG, PNG, WebP, or GIF, up to 5 MB</span>
+                <input type="file" accept="image/jpeg,image/png,image/webp,image/gif" onChange={(event) => setSubmissionPicture(event.target.files?.[0] || null)} required />
+              </label>
+              <label className="submission-upload">
+                <Feather size={25} />
+                <b>{submissionManuscript ? submissionManuscript.name : 'Upload your manuscript'}</b>
+                <span>PDF, DOC, or DOCX, up to 5 MB</span>
+                <input type="file" accept=".pdf,.doc,.docx,application/pdf,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document" onChange={(event) => setSubmissionManuscript(event.target.files?.[0] || null)} required />
+              </label>
+            </div>
+            <p className="submission-note">By submitting, you confirm that this work is yours and that AiLit may review it for publication.</p>
+            {submissionMessage && <p className="form-message" role="status">{submissionMessage}</p>}
+            <button className="solid-button submission-button" type="submit" disabled={submissionSaving}>{submissionSaving ? 'Sending...' : 'Send submission'} <ArrowRight size={18} /></button>
+          </form>
+        </section>
+      </main>
+    );
+  }
+
   if (view === 'story' && selectedStory) {
     return (
       <main className="reading-page">
@@ -528,6 +599,7 @@ function App() {
           <button onClick={() => { setView('home'); setMenuOpen(false); setTimeout(() => scrollTo('top'), 0); }}>Home</button>
           <button onClick={() => scrollTo('journal')}>New Writing</button>
           <button onClick={() => scrollTo('newsletter')}>Newsletter</button>
+          <button onClick={() => { setView('submit'); setMenuOpen(false); window.scrollTo(0, 0); }}>Submit</button>
           <button onClick={() => { setView('about'); setMenuOpen(false); }}>About</button>
           <button onClick={installWebApp}>{isStandalone ? 'Open Installed App' : 'Install Web App'}</button>
         </nav>
