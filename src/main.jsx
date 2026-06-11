@@ -34,7 +34,7 @@ function AnalogueWriter() {
               <text x="446" y="178">memory enters the sentence</text>
             </g>
             <g className="text-ribbon ribbon-two">
-              <rect x="416" y="212" width="280" height="54" rx="2" />
+              <rect x="416" y="212" width="310" height="54" rx="2" />
               <text x="436" y="244">language answers with a question</text>
             </g>
             <g className="text-ribbon ribbon-three">
