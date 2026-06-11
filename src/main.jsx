@@ -10,6 +10,78 @@ const lensText = {
   Strange: 'For creative writers, AI can act as a playful collaborator: offering alternate structures, unfamiliar perspectives, and surprising prompts that open new directions without replacing the writer.',
 };
 
+function AnalogueWriter() {
+  return (
+    <section className="analogue-writer" aria-labelledby="analogue-writer-title">
+      <div className="analogue-copy">
+        <span className="eyebrow">Machine for unfinished sentences</span>
+        <h2 id="analogue-writer-title">Language,<br />in motion.</h2>
+        <p>An analogue computer dreams in fragments, feeding possible sentences back into the human imagination.</p>
+      </div>
+      <div className="analogue-stage">
+        <svg className="analogue-machine" viewBox="0 0 760 560" role="img" aria-label="Animated analogue computer printing strips of literary text">
+          <defs>
+            <filter id="paper-shadow" x="-30%" y="-30%" width="160%" height="180%">
+              <feDropShadow dx="0" dy="8" stdDeviation="6" floodColor="#171713" floodOpacity=".2" />
+            </filter>
+            <pattern id="vent-lines" width="10" height="10" patternUnits="userSpaceOnUse">
+              <path d="M0 5H10" stroke="#1b2523" strokeWidth="2" />
+            </pattern>
+          </defs>
+
+          <g className="text-ribbons" filter="url(#paper-shadow)">
+            <g className="text-ribbon ribbon-one">
+              <rect x="430" y="112" width="245" height="54" rx="2" />
+              <text x="450" y="144">memory enters the room</text>
+            </g>
+            <g className="text-ribbon ribbon-two">
+              <rect x="420" y="178" width="280" height="54" rx="2" />
+              <text x="440" y="210">and language changes shape</text>
+            </g>
+            <g className="text-ribbon ribbon-three">
+              <rect x="436" y="244" width="220" height="54" rx="2" />
+              <text x="456" y="276">who is imagining whom?</text>
+            </g>
+          </g>
+
+          <g className="machine-body">
+            <path className="machine-shadow" d="M118 147h365l48 70v252H92V211z" />
+            <path className="machine-shell" d="M102 126h365l48 70v252H76V190z" />
+            <path className="machine-top" d="M102 126h365l48 70H76z" />
+            <rect className="machine-panel" x="111" y="198" width="318" height="202" rx="4" />
+            <rect className="machine-screen" x="143" y="224" width="164" height="106" rx="3" />
+            <path className="screen-wave" d="M158 279c18-34 35 34 53 0s35 34 53 0 22 8 29-15" />
+            <circle className="screen-dot dot-one" cx="177" cy="258" r="4" />
+            <circle className="screen-dot dot-two" cx="244" cy="296" r="4" />
+            <rect className="machine-vents" x="332" y="225" width="66" height="105" fill="url(#vent-lines)" />
+            <g className="machine-dials">
+              <circle cx="151" cy="365" r="17" />
+              <path d="M151 365l8-10" />
+              <circle cx="210" cy="365" r="17" />
+              <path d="M210 365l-7-11" />
+              <circle cx="269" cy="365" r="17" />
+              <path d="M269 365l11 2" />
+            </g>
+            <g className="machine-lights">
+              <circle cx="345" cy="365" r="7" />
+              <circle cx="374" cy="365" r="7" />
+              <circle cx="403" cy="365" r="7" />
+            </g>
+            <rect className="paper-slot" x="419" y="149" width="36" height="178" rx="3" />
+            <path className="machine-leg" d="M113 448h56l-12 49h-57zM421 448h56l13 49h-57z" />
+          </g>
+
+          <g className="loose-pages">
+            <path d="M522 405l104-24 18 79-104 24z" />
+            <path d="M550 428l63-15M555 445l50-12M561 461l58-14" />
+          </g>
+        </svg>
+        <span className="analogue-caption">INPUT: HUMAN QUESTION&nbsp;&nbsp; OUTPUT: ANOTHER QUESTION</span>
+      </div>
+    </section>
+  );
+}
+
 function App() {
   const editorRef = useRef(null);
   const inlineImageInputRef = useRef(null);
@@ -468,6 +540,7 @@ function App() {
 
       <section className="hero" id="top"><div className="hero-grid"><div className="hero-copy"><p className="eyebrow">Literature, in conversation with Artificial Intelligence</p><h1>What does it mean<br />to <em>imagine</em> now?</h1><p className="hero-deck">AiLit explores fiction, poetry, criticism, and experiments from the shifting border between human language and Artificial Intelligence.</p></div><div className="cover-wrap"><div className="cover"><div className="cover-top"><span>AiLit</span></div><div className="orb"><div className="orb-line one" /><div className="orb-line two" /><div className="orb-line three" /><Asterisk className="orb-star" /></div><div className="cover-title">Intimacy<br />& Artificial Intelligence</div><div className="cover-foot">Fiction · Poetry · Essays · Experiments</div></div></div></div></section>
       <section className="manifesto"><Asterisk size={24} /><p>We believe technology does not diminish literature's mystery. It gives the mystery <em>new rooms</em> to inhabit.</p></section>
+      <AnalogueWriter />
       <section className="journal section" id="journal"><div className="section-heading"><div><h2>New writing</h2></div></div>{stories.length ? <div className="story-grid">{stories.map((story) => <article className="story story-link" key={story.id} tabIndex="0" role="link" onClick={() => { setSelectedStory(story); setView('story'); window.scrollTo(0, 0); }} onKeyDown={(event) => { if (event.key === 'Enter') { setSelectedStory(story); setView('story'); window.scrollTo(0, 0); } }}><div className="story-art rust">{story.image_url ? <img src={story.image_url} alt="" /> : <div className="glyph">“</div>}</div><div className="story-meta"><span>{story.type}</span><span>Read <ArrowRight size={13} /></span></div><h3>{story.title}</h3><p>{story.introduction}</p><div className="author">By {story.author}</div></article>)}</div> : <div className="empty-writing"><p>New work will appear here.</p></div>}</section>
       <section className="lab section" id="lab"><div className="lab-intro"><span className="eyebrow light">AiLit Reading Lab · 01</span><h2>New ways to read.<br />New ways to write.</h2><p>Artificial Intelligence can offer fresh insight into literature by revealing hidden patterns, making unexpected connections, and inviting writers to explore possibilities beyond familiar habits.</p><div className="principles"><span><Feather size={16} /> Human-led</span><span><Sparkles size={16} /> Exploratory</span><span><AudioLines size={16} /> Creative</span></div></div><div className="reader"><div className="reader-label">Artificial Intelligence and literary imagination</div><blockquote>“AI does not decide what a story means. It gives readers and writers another way to ask what it might become.”</blockquote><div className="lens-tabs">{Object.keys(lensText).map((item) => <button className={lens === item ? 'active' : ''} onClick={() => setLens(item)} key={item}>{item === 'Close' ? 'Discover patterns' : item === 'Machine' ? 'Find connections' : 'Create possibilities'}</button>)}</div><div className="lens-output" key={lens}><Sparkles size={17} /><p>{lensText[lens]}</p></div></div></section>
       <section className="newsletter section" id="newsletter">
