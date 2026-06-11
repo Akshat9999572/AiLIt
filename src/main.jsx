@@ -1,6 +1,6 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { createRoot } from 'react-dom/client';
-import { ArrowRight, Asterisk, Menu, X, Sparkles, Feather, AudioLines, ImagePlus, Bold, Italic, List, Heading2, LogOut, Trash2 } from 'lucide-react';
+import { ArrowRight, Asterisk, Menu, X, Sparkles, Feather, AudioLines, ImagePlus, Bold, Italic, Underline, List, ListOrdered, Heading2, Quote, Link, AlignLeft, AlignCenter, AlignRight, AlignJustify, RemoveFormatting, LogOut, Trash2 } from 'lucide-react';
 import { supabase } from './supabase';
 import './styles.css';
 
@@ -14,6 +14,7 @@ function App() {
   const editorRef = useRef(null);
   const inlineImageInputRef = useRef(null);
   const editorSelectionRef = useRef(null);
+  const formattingSelectionRef = useRef(null);
   const [menuOpen, setMenuOpen] = useState(false);
   const [view, setView] = useState(window.location.pathname === '/admin' ? 'admin' : 'home');
   const [lens, setLens] = useState('Close');
@@ -145,8 +146,31 @@ function App() {
   };
 
   const formatText = (command, value) => {
+    restoreEditorSelection();
     editorRef.current?.focus();
     document.execCommand(command, false, value);
+    saveEditorSelection();
+  };
+
+  const saveEditorSelection = () => {
+    const selection = window.getSelection();
+    if (selection?.rangeCount && editorRef.current?.contains(selection.anchorNode)) {
+      formattingSelectionRef.current = selection.getRangeAt(0).cloneRange();
+    }
+  };
+
+  const restoreEditorSelection = () => {
+    if (!formattingSelectionRef.current) return;
+    const selection = window.getSelection();
+    selection?.removeAllRanges();
+    selection?.addRange(formattingSelectionRef.current);
+  };
+
+  const insertLink = () => {
+    const url = window.prompt('Enter the link URL');
+    if (!url) return;
+    const href = /^https?:\/\//i.test(url) ? url : `https://${url}`;
+    formatText('createLink', href);
   };
 
   const chooseInlineImage = () => {
@@ -312,15 +336,52 @@ function App() {
             <div className="rich-field">
               <span>Your writing</span>
               <div className="editor-toolbar">
-                <button type="button" onClick={() => formatText('bold')} title="Bold"><Bold /></button>
-                <button type="button" onClick={() => formatText('italic')} title="Italic"><Italic /></button>
-                <button type="button" onClick={() => formatText('formatBlock', 'h2')} title="Heading"><Heading2 /></button>
-                <button type="button" onClick={() => formatText('insertUnorderedList')} title="List"><List /></button>
-                <button type="button" onMouseDown={(event) => event.preventDefault()} onClick={chooseInlineImage} title="Insert image" disabled={inlineImageUploading}><ImagePlus /></button>
+                <div className="toolbar-group toolbar-selects">
+                  <select aria-label="Font family" defaultValue="" onMouseDown={saveEditorSelection} onChange={(event) => { formatText('fontName', event.target.value); event.target.value = ''; }}>
+                    <option value="" disabled>Font</option>
+                    <option value="Georgia">Georgia</option>
+                    <option value="Arial">Arial</option>
+                    <option value="Verdana">Verdana</option>
+                    <option value="Times New Roman">Times New Roman</option>
+                    <option value="Courier New">Courier New</option>
+                  </select>
+                  <select aria-label="Font size" defaultValue="" onMouseDown={saveEditorSelection} onChange={(event) => { formatText('fontSize', event.target.value); event.target.value = ''; }}>
+                    <option value="" disabled>Size</option>
+                    <option value="2">Small</option>
+                    <option value="3">Normal</option>
+                    <option value="4">Medium</option>
+                    <option value="5">Large</option>
+                    <option value="6">Extra large</option>
+                  </select>
+                  <label className="color-control" title="Text color">
+                    <span>A</span>
+                    <input type="color" defaultValue="#171713" onMouseDown={saveEditorSelection} onChange={(event) => formatText('foreColor', event.target.value)} />
+                  </label>
+                </div>
+                <div className="toolbar-group">
+                  <button type="button" onMouseDown={(event) => event.preventDefault()} onClick={() => formatText('bold')} title="Bold"><Bold /></button>
+                  <button type="button" onMouseDown={(event) => event.preventDefault()} onClick={() => formatText('italic')} title="Italic"><Italic /></button>
+                  <button type="button" onMouseDown={(event) => event.preventDefault()} onClick={() => formatText('underline')} title="Underline"><Underline /></button>
+                  <button type="button" onMouseDown={(event) => event.preventDefault()} onClick={() => formatText('formatBlock', 'h2')} title="Heading"><Heading2 /></button>
+                  <button type="button" onMouseDown={(event) => event.preventDefault()} onClick={() => formatText('formatBlock', 'blockquote')} title="Quote"><Quote /></button>
+                </div>
+                <div className="toolbar-group">
+                  <button type="button" onMouseDown={(event) => event.preventDefault()} onClick={() => formatText('justifyLeft')} title="Align left"><AlignLeft /></button>
+                  <button type="button" onMouseDown={(event) => event.preventDefault()} onClick={() => formatText('justifyCenter')} title="Align center"><AlignCenter /></button>
+                  <button type="button" onMouseDown={(event) => event.preventDefault()} onClick={() => formatText('justifyRight')} title="Align right"><AlignRight /></button>
+                  <button type="button" onMouseDown={(event) => event.preventDefault()} onClick={() => formatText('justifyFull')} title="Justify"><AlignJustify /></button>
+                </div>
+                <div className="toolbar-group">
+                  <button type="button" onMouseDown={(event) => event.preventDefault()} onClick={() => formatText('insertUnorderedList')} title="Bullet list"><List /></button>
+                  <button type="button" onMouseDown={(event) => event.preventDefault()} onClick={() => formatText('insertOrderedList')} title="Numbered list"><ListOrdered /></button>
+                  <button type="button" onMouseDown={(event) => event.preventDefault()} onClick={insertLink} title="Insert link"><Link /></button>
+                  <button type="button" onMouseDown={(event) => event.preventDefault()} onClick={() => formatText('removeFormat')} title="Clear formatting"><RemoveFormatting /></button>
+                  <button type="button" onMouseDown={(event) => event.preventDefault()} onClick={chooseInlineImage} title="Insert image" disabled={inlineImageUploading}><ImagePlus /></button>
+                </div>
                 <input ref={inlineImageInputRef} className="inline-image-input" type="file" accept="image/*,.heic,.heif,.tif,.tiff,.bmp,.svg" onChange={insertInlineImage} />
                 {inlineImageUploading && <span className="toolbar-status">Uploading image...</span>}
               </div>
-              <div ref={editorRef} className={`rich-editor ${draft.type === 'Poem' ? 'poem-editor' : ''}`} contentEditable suppressContentEditableWarning data-placeholder={draft.type === 'Poem' ? 'Begin your poem...' : 'Begin your article...'} />
+              <div ref={editorRef} className={`rich-editor ${draft.type === 'Poem' ? 'poem-editor' : ''}`} contentEditable suppressContentEditableWarning onMouseUp={saveEditorSelection} onKeyUp={saveEditorSelection} data-placeholder={draft.type === 'Poem' ? 'Begin your poem...' : 'Begin your article...'} />
             </div>
             <label className="image-upload">
               {draft.image ? <img src={draft.image} alt="Upload preview" /> : <><ImagePlus size={28} /><b>Upload a picture</b><span>Choose an image up to 10 MB.</span></>}
