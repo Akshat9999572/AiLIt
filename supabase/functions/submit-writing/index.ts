@@ -37,6 +37,44 @@ Deno.serve(async (request) => {
   if (request.method !== "POST") return respond({ error: "Method not allowed." }, 405, origin);
 
   try {
+    if ((request.headers.get("content-type") || "").includes("application/json")) {
+      const payload = await request.json();
+      if (payload.action !== "list") return respond({ error: "Unknown action." }, 400, origin);
+
+      const secretKeys = JSON.parse(Deno.env.get("SUPABASE_SECRET_KEYS") || "{}");
+      const secretKey = secretKeys.default || Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
+      const supabase = createClient(Deno.env.get("SUPABASE_URL") || "", secretKey || "");
+      const jwt = (request.headers.get("Authorization") || "").replace(/^Bearer\s+/i, "");
+      const { data: userData, error: userError } = await supabase.auth.getUser(jwt);
+      if (userError || !userData.user) return respond({ error: "Unauthorized." }, 401, origin);
+
+      const { data: admin } = await supabase.from("admins").select("user_id")
+        .eq("user_id", userData.user.id).maybeSingle();
+      if (!admin) return respond({ error: "Admin access required." }, 403, origin);
+
+      const { data: submissions, error: submissionsError } = await supabase
+        .from("submissions")
+        .select("*")
+        .order("created_at", { ascending: false });
+      if (submissionsError) throw submissionsError;
+
+      const items = await Promise.all((submissions || []).map(async (submission) => {
+        const [{ data: picture }, { data: manuscript }] = await Promise.all([
+          supabase.storage.from("submissions").createSignedUrl(submission.picture_path, 3600),
+          supabase.storage.from("submissions").createSignedUrl(submission.manuscript_path, 3600, {
+            download: submission.manuscript_name,
+          }),
+        ]);
+        return {
+          ...submission,
+          picture_url: picture?.signedUrl || null,
+          manuscript_url: manuscript?.signedUrl || null,
+        };
+      }));
+
+      return respond({ submissions: items }, 200, origin);
+    }
+
     const form = await request.formData();
     const name = String(form.get("name") || "").trim();
     const email = String(form.get("email") || "").trim().toLowerCase();
@@ -99,7 +137,7 @@ Deno.serve(async (request) => {
     }
 
     return respond({
-      message: "Your work has been received. Thank you for sharing it with AiLit.",
+      message: "Successfully submitted. Your work has been received by AiLit.",
       submissionId,
     }, 200, origin);
   } catch (error) {

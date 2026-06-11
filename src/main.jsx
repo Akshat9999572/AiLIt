@@ -106,6 +106,9 @@ function App() {
   const [submissionManuscript, setSubmissionManuscript] = useState(null);
   const [submissionMessage, setSubmissionMessage] = useState('');
   const [submissionSaving, setSubmissionSaving] = useState(false);
+  const [adminSubmissions, setAdminSubmissions] = useState([]);
+  const [submissionsLoading, setSubmissionsLoading] = useState(false);
+  const [submissionSuccess, setSubmissionSuccess] = useState(false);
   const [isStandalone, setIsStandalone] = useState(
     window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone === true
   );
@@ -164,6 +167,10 @@ function App() {
     };
     checkAdmin();
   }, [session]);
+
+  useEffect(() => {
+    if (isAdmin) loadSubmissions();
+  }, [isAdmin]);
 
   const loadStories = async () => {
     const { data } = await supabase.from('writings').select('*').eq('published', true).order('created_at', { ascending: false });
@@ -358,6 +365,7 @@ function App() {
     if (submissionManuscript.size > 5 * 1024 * 1024) return setSubmissionMessage('Your manuscript must be 5 MB or smaller.');
     setSubmissionSaving(true);
     setSubmissionMessage('');
+    setSubmissionSuccess(false);
     const formData = new FormData();
     Object.entries(submission).forEach(([key, value]) => formData.append(key, value));
     formData.append('picture', submissionPicture);
@@ -370,6 +378,17 @@ function App() {
     setSubmissionManuscript(null);
     event.currentTarget.reset();
     setSubmissionMessage(data.message);
+    setSubmissionSuccess(true);
+  };
+
+  const loadSubmissions = async () => {
+    setSubmissionsLoading(true);
+    const { data, error } = await supabase.functions.invoke('submit-writing', {
+      body: { action: 'list' },
+    });
+    setSubmissionsLoading(false);
+    if (error) return;
+    setAdminSubmissions(data.submissions || []);
   };
 
   const deleteWriting = async (story) => {
@@ -493,6 +512,33 @@ function App() {
           {stories.length ? <div className="published-list">{stories.map((story) => <article key={story.id}><div><span>{story.type}</span><h3>{story.title}</h3><p>By {story.author}</p></div><button onClick={() => deleteWriting(story)} aria-label={`Delete ${story.title}`}><Trash2 size={18} /> Delete</button></article>)}</div> : <p className="manager-empty">No published writing yet.</p>}
           {message && <p className="form-message">{message}</p>}
         </section>
+        <section className="submissions-manager">
+          <div className="manager-heading">
+            <div><span className="eyebrow">Incoming work</span><h2>Submissions</h2></div>
+            <button className="text-button" onClick={loadSubmissions}>Refresh</button>
+          </div>
+          {submissionsLoading ? <p className="manager-empty">Loading submissions...</p> : adminSubmissions.length ? (
+            <div className="submission-admin-list">
+              {adminSubmissions.map((item) => (
+                <article className="submission-admin-card" key={item.id}>
+                  <div className="submission-admin-person">
+                    {item.picture_url && <img src={item.picture_url} alt="" />}
+                    <div>
+                      <span>{new Date(item.created_at).toLocaleDateString()}</span>
+                      <h3>{item.name}</h3>
+                      <p>{item.designation}</p>
+                    </div>
+                  </div>
+                  <div className="submission-admin-details">
+                    <div><b>Email</b><a href={`mailto:${item.email}`}>{item.email}</a></div>
+                    <div><b>Short bio</b><p>{item.short_bio}</p></div>
+                    <div><b>Manuscript</b>{item.manuscript_url ? <a className="download-link" href={item.manuscript_url}>Download {item.manuscript_name} <ArrowRight size={14} /></a> : <span>Unavailable</span>}</div>
+                  </div>
+                </article>
+              ))}
+            </div>
+          ) : <p className="manager-empty">No submissions received yet.</p>}
+        </section>
       </main>
     );
   }
@@ -556,7 +602,7 @@ function App() {
               </label>
             </div>
             <p className="submission-note">By submitting, you confirm that this work is yours and that AiLit may review it for publication.</p>
-            {submissionMessage && <p className="form-message" role="status">{submissionMessage}</p>}
+            {submissionMessage && <p className={submissionSuccess ? 'submission-success' : 'form-message'} role="status">{submissionMessage}</p>}
             <button className="solid-button submission-button" type="submit" disabled={submissionSaving}>{submissionSaving ? 'Sending...' : 'Send submission'} <ArrowRight size={18} /></button>
           </form>
         </section>
