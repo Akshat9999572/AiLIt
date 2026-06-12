@@ -117,9 +117,7 @@ function App() {
   const [adminSubmissions, setAdminSubmissions] = useState([]);
   const [submissionsLoading, setSubmissionsLoading] = useState(false);
   const [submissionSuccess, setSubmissionSuccess] = useState(false);
-  const [editingSubmissionId, setEditingSubmissionId] = useState(null);
-  const [editingSubmission, setEditingSubmission] = useState(null);
-  const [submissionAdminMessage, setSubmissionAdminMessage] = useState('');
+  const [editingStoryId, setEditingStoryId] = useState(null);
   const [isStandalone, setIsStandalone] = useState(
     window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone === true
   );
@@ -367,6 +365,7 @@ function App() {
   const publishWriting = async (event) => {
     event.preventDefault();
     if (!isAdmin || !session?.user) return;
+    const wasEditing = Boolean(editingStoryId);
     setSaving(true);
     setMessage('');
     let imageUrl = null;
@@ -380,27 +379,36 @@ function App() {
       }
       imageUrl = supabase.storage.from('writing-images').getPublicUrl(path).data.publicUrl;
     }
-    const { data: publishedStory, error } = await supabase.from('writings').insert({
+    const writingPayload = {
       type: draft.type,
       title: draft.title,
       author: draft.author,
       introduction: draft.introduction,
       body: editorRef.current.innerHTML,
-      image_url: imageUrl,
       created_by: session.user.id,
-    }).select().single();
+    };
+    if (imageUrl) writingPayload.image_url = imageUrl;
+    const query = editingStoryId
+      ? supabase.from('writings').update(writingPayload).eq('id', editingStoryId)
+      : supabase.from('writings').insert(writingPayload);
+    const { data: publishedStory, error } = await query.select().single();
     setSaving(false);
     if (error) return setMessage(error.message);
     setDraft({ type: 'Article', title: '', author: '', introduction: '', image: '' });
     setImageFile(null);
+    setEditingStoryId(null);
     await loadStories();
     if (editorRef.current) editorRef.current.innerHTML = '';
-    const { data: newsletterData, error: newsletterError } = await supabase.functions.invoke('newsletter', {
-      body: { action: 'notify', story: publishedStory },
-    });
-    setMessage(newsletterError
-      ? 'Published successfully. Newsletter delivery is not configured yet.'
-      : `Published successfully. Newsletter sent to ${newsletterData.sent} subscriber${newsletterData.sent === 1 ? '' : 's'}.`);
+    if (wasEditing) {
+      setMessage('Writing updated and republished successfully.');
+    } else {
+      const { data: newsletterData, error: newsletterError } = await supabase.functions.invoke('newsletter', {
+        body: { action: 'notify', story: publishedStory },
+      });
+      setMessage(newsletterError
+        ? 'Published successfully. Newsletter delivery is not configured yet.'
+        : `Published successfully. Newsletter sent to ${newsletterData.sent} subscriber${newsletterData.sent === 1 ? '' : 's'}.`);
+    }
   };
 
   const subscribeToNewsletter = async (event) => {
@@ -449,36 +457,18 @@ function App() {
     setAdminSubmissions(data.submissions || []);
   };
 
-  const startEditingSubmission = (item) => {
-    setEditingSubmissionId(item.id);
-    setEditingSubmission({ ...item });
-    setSubmissionAdminMessage('');
-  };
-
-  const saveSubmission = async () => {
-    const { data, error } = await supabase.functions.invoke('submit-writing', {
-      body: { action: 'update', submission: editingSubmission },
-    });
-    if (error) return setSubmissionAdminMessage('The submission could not be updated.');
-    setEditingSubmissionId(null);
-    setEditingSubmission(null);
-    setSubmissionAdminMessage(data.message);
-    await loadSubmissions();
-  };
-
-  const prepareSubmissionForPublishing = (item) => {
+  const editWriting = (story) => {
+    setEditingStoryId(story.id);
     setDraft({
-      type: 'Article',
-      title: '',
-      author: item.name,
-      introduction: item.short_bio,
-      image: '',
+      type: story.type,
+      title: story.title,
+      author: story.author,
+      introduction: story.introduction,
+      image: story.image_url || '',
     });
     setImageFile(null);
-    if (editorRef.current) {
-      editorRef.current.innerHTML = '<p>Open the submitted manuscript below and prepare the selected writing for publication.</p>';
-    }
-    setMessage(`Submission by ${item.name} is ready to edit. Add the title and article text, then publish.`);
+    if (editorRef.current) editorRef.current.innerHTML = story.body || '';
+    setMessage(`Editing "${story.title}". Make changes and select Republish.`);
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
@@ -598,13 +588,13 @@ function App() {
               <input type="file" accept="image/*,.heic,.heif,.tif,.tiff,.bmp,.svg" onChange={uploadImage} />
             </label>
             {message && <p className="form-message">{message}</p>}
-            <div className="editor-actions"><button type="button" onClick={() => window.location.assign('/')}>Cancel</button><button className="solid-button" type="submit" disabled={saving}>{saving ? 'Publishing...' : 'Publish writing'} <ArrowRight size={18} /></button></div>
+            <div className="editor-actions"><button type="button" onClick={() => { if (editingStoryId) { setEditingStoryId(null); setDraft({ type: 'Article', title: '', author: '', introduction: '', image: '' }); if (editorRef.current) editorRef.current.innerHTML = ''; } else window.location.assign('/'); }}>Cancel</button><button className="solid-button" type="submit" disabled={saving}>{saving ? 'Publishing...' : editingStoryId ? 'Republish' : 'Publish writing'} <ArrowRight size={18} /></button></div>
           </div>
         </form>
         <section className="published-manager">
           <span className="eyebrow">Published work</span>
           <h2>Manage writing</h2>
-          {stories.length ? <div className="published-list">{stories.map((story) => <article key={story.id}><div><span>{story.type}</span><h3>{story.title}</h3><p>By {story.author}</p></div><button onClick={() => deleteWriting(story)} aria-label={`Delete ${story.title}`}><Trash2 size={18} /> Delete</button></article>)}</div> : <p className="manager-empty">No published writing yet.</p>}
+          {stories.length ? <div className="published-list">{stories.map((story) => <article key={story.id}><div><span>{story.type}</span><h3>{story.title}</h3><p>By {story.author}</p></div><div className="published-actions"><button className="edit-writing-button" onClick={() => editWriting(story)}>Edit</button><button className="republish-writing-button" onClick={() => editWriting(story)}>Republish</button><button onClick={() => deleteWriting(story)} aria-label={`Delete ${story.title}`}><Trash2 size={18} /> Delete</button></div></article>)}</div> : <p className="manager-empty">No published writing yet.</p>}
           {message && <p className="form-message">{message}</p>}
         </section>
         <section className="submissions-manager">
@@ -620,28 +610,18 @@ function App() {
                     {item.picture_url && <img src={item.picture_url} alt="" />}
                     <div>
                       <span>{new Date(item.created_at).toLocaleDateString()}</span>
-                      {editingSubmissionId === item.id ? (
-                        <div className="submission-edit-fields">
-                          <input value={editingSubmission.name} onChange={(event) => setEditingSubmission({ ...editingSubmission, name: event.target.value })} aria-label="Name" />
-                          <input value={editingSubmission.designation} onChange={(event) => setEditingSubmission({ ...editingSubmission, designation: event.target.value })} aria-label="Designation" />
-                        </div>
-                      ) : <><h3>{item.name}</h3><p>{item.designation}</p></>}
+                      <h3>{item.name}</h3><p>{item.designation}</p>
                     </div>
                   </div>
                   <div className="submission-admin-details">
-                    <div><b>Email</b>{editingSubmissionId === item.id ? <input value={editingSubmission.email} onChange={(event) => setEditingSubmission({ ...editingSubmission, email: event.target.value })} aria-label="Email" /> : <a href={`mailto:${item.email}`}>{item.email}</a>}</div>
-                    <div><b>Short bio</b>{editingSubmissionId === item.id ? <textarea value={editingSubmission.short_bio} onChange={(event) => setEditingSubmission({ ...editingSubmission, short_bio: event.target.value })} aria-label="Short bio" /> : <p>{item.short_bio}</p>}</div>
+                    <div><b>Email</b><a href={`mailto:${item.email}`}>{item.email}</a></div>
+                    <div><b>Short bio</b><p>{item.short_bio}</p></div>
                     <div><b>Manuscript</b>{item.manuscript_url ? <a className="download-link" href={item.manuscript_url}>Download {item.manuscript_name} <ArrowRight size={14} /></a> : <span>Unavailable</span>}</div>
-                    <div className="submission-admin-actions">
-                      {editingSubmissionId === item.id ? <><button onClick={saveSubmission}>Save changes</button><button onClick={() => { setEditingSubmissionId(null); setEditingSubmission(null); }}>Cancel</button></> : <button onClick={() => startEditingSubmission(item)}>Edit</button>}
-                      <button className="republish-button" onClick={() => prepareSubmissionForPublishing(item)}>Republish</button>
-                    </div>
                   </div>
                 </article>
               ))}
             </div>
           ) : <p className="manager-empty">No submissions received yet.</p>}
-          {submissionAdminMessage && <p className="form-message">{submissionAdminMessage}</p>}
         </section>
       </main>
     );
