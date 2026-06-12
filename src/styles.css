@@ -104,6 +104,11 @@ button { cursor:pointer; }
 .story-link .story-meta span:last-child { display:flex; align-items:center; gap:6px; }
 .story p { font:15px/1.6 var(--serif); min-height:48px; }
 .author { font:11px var(--mono); text-transform:uppercase; margin-top:25px; }
+.story-actions { display:flex; align-items:center; gap:12px; margin-top:24px; }
+.story-actions button { cursor:pointer; }
+.story-read { border:0; background:var(--ink); color:var(--paper); padding:15px 22px; display:flex; align-items:center; justify-content:space-between; gap:35px; font-weight:800; font-size:15px; }
+.story-share { border:1px solid var(--line); background:transparent; padding:14px 17px; display:flex; align-items:center; gap:8px; font-weight:700; }
+.share-toast { position:fixed; right:24px; bottom:24px; z-index:30; background:var(--ink); color:var(--paper); padding:14px 18px; font:11px var(--mono); }
 .lab { background:#1b2523; color:#eae5d9; display:grid; grid-template-columns:.8fr 1.2fr; gap:8vw; }
 .light { color:#afbaa8; }
 .lab-intro>p { font:15px/1.7 var(--serif); max-width:470px; margin:35px 0; }
@@ -187,6 +192,8 @@ footer a { color:inherit;text-decoration:none;display:block;font:14px var(--seri
 .reading-heading { max-width:850px; margin:0 auto 70px; text-align:center; }
 .reading-heading h1 { font:500 clamp(58px,8vw,112px)/.95 var(--serif); letter-spacing:-.055em; margin:0 0 30px; }
 .reading-heading>p { max-width:680px; margin:0 auto 28px; font:italic 21px/1.6 var(--serif); color:#5f5b53; }
+.reading-share { margin:28px auto 0; border:1px solid var(--ink); background:transparent; padding:13px 17px; display:flex; align-items:center; gap:9px; font-weight:800; cursor:pointer; }
+.share-message { display:block; margin-top:12px; color:var(--red); font:11px var(--mono); }
 .reading-image { width:100%; max-height:650px; object-fit:cover; margin-bottom:75px; }
 .reading-body { max-width:720px; margin:auto; font:20px/1.9 var(--serif); }
 .reading-body h2 { font:500 38px/1.15 var(--serif); margin:2em 0 .6em; }
@@ -323,6 +330,8 @@ footer a { color:inherit;text-decoration:none;display:block;font:14px var(--seri
   .story-meta { margin-top:15px; }
   .story h3 { font-size:28px; line-height:1.12; }
   .story p { min-height:0; font-size:15px; }
+  .story-actions { align-items:stretch; flex-direction:column; }
+  .story-read,.story-share { width:100%; justify-content:space-between; }
 
   .lab { padding:70px 22px; gap:44px; }
   .lab-intro>p { margin:24px 0; font-size:15px; }

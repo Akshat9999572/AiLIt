@@ -1,6 +1,6 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { createRoot } from 'react-dom/client';
-import { ArrowRight, Asterisk, Menu, X, Sparkles, Feather, AudioLines, ImagePlus, Bold, Italic, Underline, List, ListOrdered, Heading2, Quote, Link, AlignLeft, AlignCenter, AlignRight, AlignJustify, RemoveFormatting, LogOut, Trash2 } from 'lucide-react';
+import { ArrowRight, Asterisk, Menu, X, Sparkles, Feather, AudioLines, ImagePlus, Bold, Italic, Underline, List, ListOrdered, Heading2, Quote, Link, AlignLeft, AlignCenter, AlignRight, AlignJustify, RemoveFormatting, LogOut, Trash2, Share2 } from 'lucide-react';
 import { supabase } from './supabase';
 import './styles.css';
 
@@ -90,12 +90,14 @@ function App() {
     if (window.location.pathname === '/admin') return 'admin';
     if (window.location.pathname === '/about') return 'about';
     if (window.location.pathname === '/submit') return 'submit';
+    if (window.location.pathname.startsWith('/writing/')) return 'story';
     return 'home';
   };
   const [view, setView] = useState(routeView);
   const [lens, setLens] = useState('Close');
   const [stories, setStories] = useState([]);
   const [selectedStory, setSelectedStory] = useState(null);
+  const [shareMessage, setShareMessage] = useState('');
   const [session, setSession] = useState(null);
   const [isAdmin, setIsAdmin] = useState(false);
   const [authReady, setAuthReady] = useState(false);
@@ -151,8 +153,13 @@ function App() {
     window.addEventListener('beforeinstallprompt', onBeforeInstallPrompt);
     window.addEventListener('appinstalled', onInstalled);
     const onPopState = () => {
-      setView(routeView());
-      setSelectedStory(null);
+      const nextView = routeView();
+      setView(nextView);
+      if (nextView === 'story') {
+        loadStories();
+      } else {
+        setSelectedStory(null);
+      }
       window.scrollTo(0, 0);
     };
     window.addEventListener('popstate', onPopState);
@@ -188,12 +195,14 @@ function App() {
   const loadStories = async () => {
     const { data } = await supabase.from('writings').select('*').eq('published', true).order('created_at', { ascending: false });
     setStories(data || []);
-    const storyId = new URLSearchParams(window.location.search).get('story');
+    const storyId = window.location.pathname.startsWith('/writing/')
+      ? window.location.pathname.split('/writing/')[1]
+      : new URLSearchParams(window.location.search).get('story');
     const linkedStory = data?.find((story) => story.id === storyId);
     if (linkedStory) {
       setSelectedStory(linkedStory);
       setView('story');
-      window.history.replaceState({}, '', '/');
+      if (!window.location.pathname.startsWith('/writing/')) window.history.replaceState({}, '', `/writing/${linkedStory.id}`);
     }
   };
 
@@ -249,8 +258,9 @@ function App() {
   };
 
   const formatText = (command, value) => {
-    restoreEditorSelection();
     editorRef.current?.focus();
+    restoreEditorSelection();
+    document.execCommand('styleWithCSS', false, true);
     document.execCommand(command, false, value);
     saveEditorSelection();
   };
@@ -274,6 +284,30 @@ function App() {
     if (!url) return;
     const href = /^https?:\/\//i.test(url) ? url : `https://${url}`;
     formatText('createLink', href);
+  };
+
+  const openStory = (story) => {
+    window.history.pushState({}, '', `/writing/${story.id}`);
+    setSelectedStory(story);
+    setView('story');
+    setShareMessage('');
+    window.scrollTo(0, 0);
+  };
+
+  const shareStory = async (story, event) => {
+    event?.stopPropagation();
+    const url = `${window.location.origin}/writing/${story.id}`;
+    try {
+      if (navigator.share) {
+        await navigator.share({ title: story.title, text: story.introduction, url });
+      } else {
+        await navigator.clipboard.writeText(url);
+        setShareMessage('Link copied.');
+        setTimeout(() => setShareMessage(''), 2500);
+      }
+    } catch (error) {
+      if (error?.name !== 'AbortError') setShareMessage('Could not share this link.');
+    }
   };
 
   const chooseInlineImage = () => {
@@ -476,8 +510,12 @@ function App() {
                   <select aria-label="Font family" defaultValue="" onMouseDown={saveEditorSelection} onChange={(event) => { formatText('fontName', event.target.value); event.target.value = ''; }}>
                     <option value="" disabled>Font</option>
                     <option value="Georgia">Georgia</option>
+                    <option value="Garamond">Garamond</option>
+                    <option value="Baskerville">Baskerville</option>
+                    <option value="Palatino Linotype">Palatino</option>
                     <option value="Arial">Arial</option>
                     <option value="Verdana">Verdana</option>
+                    <option value="Trebuchet MS">Trebuchet</option>
                     <option value="Times New Roman">Times New Roman</option>
                     <option value="Courier New">Courier New</option>
                   </select>
@@ -646,6 +684,8 @@ function App() {
             <h1>{selectedStory.title}</h1>
             <p>{selectedStory.introduction}</p>
             <div className="author">By {selectedStory.author}</div>
+            <button className="reading-share" onClick={(event) => shareStory(selectedStory, event)}><Share2 size={17} /> Share this writing</button>
+            {shareMessage && <span className="share-message" role="status">{shareMessage}</span>}
           </div>
           {selectedStory.image_url && <img className="reading-image" src={selectedStory.image_url} alt="" />}
           <div className="reading-body" dangerouslySetInnerHTML={{ __html: selectedStory.body }} />
@@ -678,7 +718,7 @@ function App() {
       <section className="hero" id="top"><div className="hero-grid"><div className="hero-copy"><p className="eyebrow">Literature, in conversation with Artificial Intelligence</p><h1>What does it mean<br />to <em>imagine</em> now?</h1><p className="hero-deck">AiLit explores fiction, poetry, criticism, and experiments from the shifting border between human language and Artificial Intelligence.</p></div><div className="cover-wrap"><div className="cover"><div className="cover-top"><span>AiLit</span></div><div className="orb"><div className="orb-line one" /><div className="orb-line two" /><div className="orb-line three" /><Asterisk className="orb-star" /></div><div className="cover-title">Intimacy<br />& Artificial Intelligence</div><div className="cover-foot">Fiction · Poetry · Essays · Experiments</div></div></div></div></section>
       <section className="manifesto"><Asterisk size={24} /><p>We believe technology does not diminish literature's mystery. It gives the mystery <em>new rooms</em> to inhabit.</p></section>
       <AnalogueWriter />
-      <section className="journal section" id="journal"><div className="section-heading"><div><h2>New writing</h2></div></div>{stories.length ? <div className="story-grid">{stories.map((story) => <article className="story story-link" key={story.id} tabIndex="0" role="link" onClick={() => { setSelectedStory(story); setView('story'); window.scrollTo(0, 0); }} onKeyDown={(event) => { if (event.key === 'Enter') { setSelectedStory(story); setView('story'); window.scrollTo(0, 0); } }}><div className="story-art rust">{story.image_url ? <img src={story.image_url} alt="" /> : <div className="glyph">“</div>}</div><div className="story-meta"><span>{story.type}</span><span>Read <ArrowRight size={13} /></span></div><h3>{story.title}</h3><p>{story.introduction}</p><div className="author">By {story.author}</div></article>)}</div> : <div className="empty-writing"><p>New work will appear here.</p></div>}</section>
+      <section className="journal section" id="journal"><div className="section-heading"><div><h2>New writing</h2></div></div>{stories.length ? <div className="story-grid">{stories.map((story) => <article className="story story-link" key={story.id} tabIndex="0" role="link" onClick={() => openStory(story)} onKeyDown={(event) => { if (event.key === 'Enter') openStory(story); }}><div className="story-art rust">{story.image_url ? <img src={story.image_url} alt="" /> : <div className="glyph">“</div>}</div><div className="story-meta"><span>{story.type}</span></div><h3>{story.title}</h3><p>{story.introduction}</p><div className="author">By {story.author}</div><div className="story-actions"><button className="story-read" onClick={(event) => { event.stopPropagation(); openStory(story); }}>Read <ArrowRight size={18} /></button><button className="story-share" onClick={(event) => shareStory(story, event)} aria-label={`Share ${story.title}`}><Share2 size={17} /> Share</button></div></article>)}</div> : <div className="empty-writing"><p>New work will appear here.</p></div>}{shareMessage && <div className="share-toast" role="status">{shareMessage}</div>}</section>
       <section className="lab section" id="lab"><div className="lab-intro"><span className="eyebrow light">AiLit Reading Lab · 01</span><h2>New ways to read.<br />New ways to write.</h2><p>Artificial Intelligence can offer fresh insight into literature by revealing hidden patterns, making unexpected connections, and inviting writers to explore possibilities beyond familiar habits.</p><div className="principles"><span><Feather size={16} /> Human-led</span><span><Sparkles size={16} /> Exploratory</span><span><AudioLines size={16} /> Creative</span></div></div><div className="reader"><div className="reader-label">Artificial Intelligence and literary imagination</div><blockquote>“AI does not decide what a story means. It gives readers and writers another way to ask what it might become.”</blockquote><div className="lens-tabs">{Object.keys(lensText).map((item) => <button className={lens === item ? 'active' : ''} onClick={() => setLens(item)} key={item}>{item === 'Close' ? 'Discover patterns' : item === 'Machine' ? 'Find connections' : 'Create possibilities'}</button>)}</div><div className="lens-output" key={lens}><Sparkles size={17} /><p>{lensText[lens]}</p></div></div></section>
       <section className="newsletter section" id="newsletter">
         <img src="/ailit-logo.png" alt="" />
