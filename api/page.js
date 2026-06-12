@@ -46,7 +46,7 @@ const pageDetails = async (path) => {
       return {
         title: `${writing.title} by ${writing.author} - AiLit`,
         description: writing.introduction,
-        image: writing.image_url ? `${SITE_URL}/api/og-image?id=${writingMatch[1]}` : `${SITE_URL}/og-image.png`,
+        image: writing.image_url ? `${SITE_URL}/og/writing-${writingMatch[1]}-v2.jpg` : `${SITE_URL}/og-image.png`,
         type: 'article',
       };
     }
@@ -67,7 +67,7 @@ export default async function handler(request, response) {
   const image = details.image.startsWith('http') ? details.image : `${SITE_URL}${details.image}`;
 
   response.setHeader('Content-Type', 'text/html; charset=utf-8');
-  response.setHeader('Cache-Control', 'public, s-maxage=300, stale-while-revalidate=86400');
+  response.setHeader('Cache-Control', 'public, max-age=0, s-maxage=0, must-revalidate');
   response.status(200).send(`<!doctype html>
 <html lang="en">
   <head>
@@ -83,7 +83,7 @@ export default async function handler(request, response) {
     <meta property="og:url" content="${escapeHtml(canonicalUrl)}" />
     <meta property="og:image" content="${escapeHtml(image)}" />
     <meta property="og:image:secure_url" content="${escapeHtml(image)}" />
-    <meta property="og:image:type" content="${image.includes('/api/og-image') ? 'image/jpeg' : 'image/png'}" />
+    <meta property="og:image:type" content="${image.includes('/og/writing-') ? 'image/jpeg' : 'image/png'}" />
     <meta property="og:image:width" content="1200" />
     <meta property="og:image:height" content="630" />
     <meta property="og:image:alt" content="${escapeHtml(details.title)}" />

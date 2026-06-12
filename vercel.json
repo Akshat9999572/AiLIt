@@ -1,5 +1,6 @@
 {
   "rewrites": [
+    { "source": "/og/writing-:id-v2.jpg", "destination": "/api/og-image?id=:id" },
     { "source": "/app-shell/:path*", "destination": "/index.html" },
     { "source": "/:path*", "destination": "/api/page?path=:path*" }
   ]
