@@ -600,6 +600,7 @@ function App() {
             <span className="eyebrow">Send us your work</span>
             <h1>Literature in conversation with intelligence.</h1>
             <p>Submit an article, essay, story, or poem that explores the intersection of Artificial Intelligence and literature.</p>
+            <p className="submission-call">Our door remains open throughout the year. Good writing asks for patient attention, so it may be a while before your work finds its published home in AiLit.</p>
           </div>
           <form className="submission-form" onSubmit={submitWriting}>
             <div className="submission-row">
