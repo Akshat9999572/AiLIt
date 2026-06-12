@@ -46,7 +46,7 @@ const pageDetails = async (path) => {
       return {
         title: `${writing.title} by ${writing.author} - AiLit`,
         description: writing.introduction,
-        image: writing.image_url || `${SITE_URL}/og-image.png`,
+        image: writing.image_url ? `${SITE_URL}/api/og-image?id=${writingMatch[1]}` : `${SITE_URL}/og-image.png`,
         type: 'article',
       };
     }
@@ -83,6 +83,9 @@ export default async function handler(request, response) {
     <meta property="og:url" content="${escapeHtml(canonicalUrl)}" />
     <meta property="og:image" content="${escapeHtml(image)}" />
     <meta property="og:image:secure_url" content="${escapeHtml(image)}" />
+    <meta property="og:image:type" content="${image.includes('/api/og-image') ? 'image/jpeg' : 'image/png'}" />
+    <meta property="og:image:width" content="1200" />
+    <meta property="og:image:height" content="630" />
     <meta property="og:image:alt" content="${escapeHtml(details.title)}" />
     <meta name="twitter:card" content="summary_large_image" />
     <meta name="twitter:title" content="${escapeHtml(details.title)}" />
