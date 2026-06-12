@@ -81,6 +81,10 @@ function AnalogueWriter() {
 }
 
 function App() {
+  if (window.location.pathname.startsWith('/app-shell')) {
+    const cleanPath = window.location.pathname.replace(/^\/app-shell/, '') || '/';
+    window.history.replaceState({}, '', cleanPath + window.location.search + window.location.hash);
+  }
   const editorRef = useRef(null);
   const inlineImageInputRef = useRef(null);
   const editorSelectionRef = useRef(null);

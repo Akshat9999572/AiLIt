@@ -1,5 +1,6 @@
 {
   "rewrites": [
-    { "source": "/(.*)", "destination": "/index.html" }
+    { "source": "/app-shell/:path*", "destination": "/index.html" },
+    { "source": "/:path*", "destination": "/api/page?path=:path*" }
   ]
 }
