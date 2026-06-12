@@ -39,7 +39,7 @@ Deno.serve(async (request) => {
   try {
     if ((request.headers.get("content-type") || "").includes("application/json")) {
       const payload = await request.json();
-      if (payload.action !== "list") return respond({ error: "Unknown action." }, 400, origin);
+      if (!["list", "update"].includes(payload.action)) return respond({ error: "Unknown action." }, 400, origin);
 
       const secretKeys = JSON.parse(Deno.env.get("SUPABASE_SECRET_KEYS") || "{}");
       const secretKey = secretKeys.default || Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
@@ -51,6 +51,25 @@ Deno.serve(async (request) => {
       const { data: admin } = await supabase.from("admins").select("user_id")
         .eq("user_id", userData.user.id).maybeSingle();
       if (!admin) return respond({ error: "Admin access required." }, 403, origin);
+
+      if (payload.action === "update") {
+        const submission = payload.submission || {};
+        const name = String(submission.name || "").trim();
+        const email = String(submission.email || "").trim().toLowerCase();
+        const designation = String(submission.designation || "").trim();
+        const shortBio = String(submission.short_bio || "").trim();
+        if (!submission.id || !name || name.length > 120) return respond({ error: "Invalid submission details." }, 400, origin);
+        if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email) || email.length > 254) return respond({ error: "Enter a valid email." }, 400, origin);
+        if (!designation || designation.length > 160 || !shortBio || shortBio.length > 1000) return respond({ error: "Invalid submission details." }, 400, origin);
+        const { error: updateError } = await supabase.from("submissions").update({
+          name,
+          email,
+          designation,
+          short_bio: shortBio,
+        }).eq("id", submission.id);
+        if (updateError) throw updateError;
+        return respond({ message: "Submission updated." }, 200, origin);
+      }
 
       const { data: submissions, error: submissionsError } = await supabase
         .from("submissions")
