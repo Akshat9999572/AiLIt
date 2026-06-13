@@ -1,6 +1,8 @@
 import { createClient } from "npm:@supabase/supabase-js@2";
 
 const allowedOrigins = new Set([
+  "https://ailitmagazine.xyz",
+  "https://www.ailitmagazine.xyz",
   "https://ailit-xi.vercel.app",
   "http://localhost:4173",
   "http://localhost:5173",
@@ -13,8 +15,8 @@ const respond = (body: unknown, status = 200, origin = "") =>
     status,
     headers: {
       "Content-Type": "application/json",
-      "Access-Control-Allow-Origin": allowedOrigins.has(origin) ? origin : "https://ailit-xi.vercel.app",
-      "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
+      "Access-Control-Allow-Origin": allowedOrigins.has(origin) ? origin : "https://ailitmagazine.xyz",
+      "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type, x-supabase-api-version",
       "Access-Control-Allow-Methods": "POST, OPTIONS",
       "Vary": "Origin",
     },
@@ -70,7 +72,7 @@ Deno.serve(async (request) => {
           from,
           to: email,
           subject: "Welcome to the AiLit newsletter",
-          html: `<div style="background:#f4efe5;padding:40px 20px;color:#171713;font-family:Georgia,serif"><div style="max-width:600px;margin:auto"><p style="font:12px Arial,sans-serif;letter-spacing:.14em;text-transform:uppercase">AiLit newsletter</p><h1 style="font-size:42px;line-height:1.05;margin:24px 0">You are on the reading list.</h1><p style="font-size:18px;line-height:1.6">Thank you for subscribing. We will send you a quiet note whenever a new article or poem is published.</p><p style="margin:34px 0"><a href="https://ailit-xi.vercel.app" style="background:#171713;color:#fff;padding:14px 20px;text-decoration:none;font:14px Arial,sans-serif">Visit AiLit</a></p></div></div>`,
+          html: `<div style="background:#f4efe5;padding:40px 20px;color:#171713;font-family:Georgia,serif"><div style="max-width:600px;margin:auto"><p style="font:12px Arial,sans-serif;letter-spacing:.14em;text-transform:uppercase">AiLit newsletter</p><h1 style="font-size:42px;line-height:1.05;margin:24px 0">You are on the reading list.</h1><p style="font-size:18px;line-height:1.6">Thank you for subscribing. We will send you a quiet note whenever a new article or poem is published.</p><p style="margin:34px 0"><a href="https://ailitmagazine.xyz" style="background:#171713;color:#fff;padding:14px 20px;text-decoration:none;font:14px Arial,sans-serif">Visit AiLit</a></p></div></div>`,
         }),
       });
 
@@ -110,7 +112,7 @@ Deno.serve(async (request) => {
       if (error) throw error;
       if (!subscribers?.length) return respond({ sent: 0 }, 200, origin);
 
-      const siteUrl = "https://ailit-xi.vercel.app";
+      const siteUrl = "https://ailitmagazine.xyz";
       const from = Deno.env.get("NEWSLETTER_FROM") || "AiLit <onboarding@resend.dev>";
       let sent = 0;
       for (let index = 0; index < subscribers.length; index += 100) {

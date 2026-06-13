@@ -411,7 +411,7 @@ function App() {
         body: { action: 'notify', story: publishedStory },
       });
       setMessage(newsletterError
-        ? 'Published successfully. Newsletter delivery is not configured yet.'
+        ? `Published successfully, but the newsletter could not be sent${newsletterError.message ? `: ${newsletterError.message}` : '.'}`
         : `Published successfully. Newsletter sent to ${newsletterData.sent} subscriber${newsletterData.sent === 1 ? '' : 's'}.`);
     }
   };
