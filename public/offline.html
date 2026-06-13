@@ -1,0 +1,26 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="theme-color" content="#f2eee4" />
+    <title>AiLit is offline</title>
+    <style>
+      :root { color-scheme: light; font-family: Georgia, serif; background:#f2eee4; color:#171713; }
+      body { min-height:100vh; margin:0; display:grid; place-items:center; padding:28px; box-sizing:border-box; }
+      main { width:min(620px,100%); border-top:1px solid #171713; padding-top:32px; }
+      img { width:48px; }
+      h1 { font-size:clamp(48px,12vw,84px); line-height:.92; font-weight:500; letter-spacing:-.05em; margin:30px 0; }
+      p { color:#615d55; font-size:18px; line-height:1.6; }
+      button { margin-top:24px; border:0; background:#171713; color:#f2eee4; padding:15px 20px; font-weight:700; cursor:pointer; }
+    </style>
+  </head>
+  <body>
+    <main>
+      <img src="/ailit-logo.png" alt="" />
+      <h1>The page is<br />between signals.</h1>
+      <p>AiLit needs a connection to retrieve the latest writing. Reconnect and try again.</p>
+      <button onclick="window.location.reload()">Try again</button>
+    </main>
+  </body>
+</html>

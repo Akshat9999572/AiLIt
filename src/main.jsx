@@ -1,8 +1,17 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { createRoot } from 'react-dom/client';
 import { ArrowRight, Asterisk, Menu, X, Sparkles, Feather, AudioLines, ImagePlus, Bold, Italic, Underline, List, ListOrdered, Heading2, Quote, Link, AlignLeft, AlignCenter, AlignRight, AlignJustify, RemoveFormatting, LogOut, Trash2, Share2 } from 'lucide-react';
+import { Capacitor } from '@capacitor/core';
+import { App as CapacitorApp } from '@capacitor/app';
+import { Browser } from '@capacitor/browser';
+import { PushNotifications } from '@capacitor/push-notifications';
+import { Share } from '@capacitor/share';
+import { StatusBar, Style } from '@capacitor/status-bar';
 import { supabase } from './supabase';
 import './styles.css';
+
+const isNativeApp = Capacitor.isNativePlatform();
+const siteUrl = 'https://ailitmagazine.xyz';
 
 const lensText = {
   Close: 'AI can trace recurring images, rhythms, and relationships across a text, helping readers notice patterns that may be difficult to see in a single reading.',
@@ -93,6 +102,7 @@ function App() {
   const routeView = () => {
     if (window.location.pathname === '/admin') return 'admin';
     if (window.location.pathname === '/about') return 'about';
+    if (window.location.pathname === '/privacy') return 'privacy';
     if (window.location.pathname === '/submit') return 'submit';
     if (window.location.pathname.startsWith('/writing/')) return 'story';
     return 'home';
@@ -114,6 +124,7 @@ function App() {
   const [newsletterMessage, setNewsletterMessage] = useState('');
   const [newsletterSaving, setNewsletterSaving] = useState(false);
   const [newsletterPopupOpen, setNewsletterPopupOpen] = useState(false);
+  const [pushState, setPushState] = useState(() => window.localStorage.getItem('ailit-push-enabled') ? 'enabled' : 'idle');
   const [submission, setSubmission] = useState({ name: '', email: '', designation: '', shortBio: '' });
   const [submissionPicture, setSubmissionPicture] = useState(null);
   const [submissionManuscript, setSubmissionManuscript] = useState(null);
@@ -130,6 +141,41 @@ function App() {
   const [inlineImageUploading, setInlineImageUploading] = useState(false);
   const [imageFile, setImageFile] = useState(null);
   const [draft, setDraft] = useState({ type: 'Article', title: '', author: '', introduction: '', image: '', imageDescription: '' });
+
+  useEffect(() => {
+    if (!isNativeApp) return undefined;
+    StatusBar.setStyle({ style: Style.Light }).catch(() => {});
+    StatusBar.setBackgroundColor({ color: '#f2eee4' }).catch(() => {});
+
+    const appUrlListener = CapacitorApp.addListener('appUrlOpen', ({ url }) => {
+      const incomingUrl = new URL(url);
+      if (incomingUrl.pathname === '/admin' || incomingUrl.pathname.startsWith('/admin/')) {
+        Browser.open({ url: `${siteUrl}${incomingUrl.pathname}` }).catch(() => {});
+        navigateTo('home', '/');
+        return;
+      }
+      window.history.pushState({}, '', `${incomingUrl.pathname}${incomingUrl.search}`);
+      const nextView = routeView();
+      setView(nextView);
+      if (nextView === 'story') loadStories();
+      window.scrollTo(0, 0);
+    });
+
+    const backListener = CapacitorApp.addListener('backButton', ({ canGoBack }) => {
+      if (window.location.pathname !== '/' || canGoBack) window.history.back();
+      else CapacitorApp.exitApp();
+    });
+
+    if (window.location.pathname === '/admin') {
+      Browser.open({ url: `${siteUrl}/admin` }).catch(() => {});
+      navigateTo('home', '/');
+    }
+
+    return () => {
+      appUrlListener.then((listener) => listener.remove());
+      backListener.then((listener) => listener.remove());
+    };
+  }, []);
 
   useEffect(() => {
     if (window.localStorage.getItem('ailit-newsletter-invitation-seen')) return;
@@ -311,7 +357,9 @@ function App() {
     event?.stopPropagation();
     const url = `${window.location.origin}/writing/${story.id}`;
     try {
-      if (navigator.share) {
+      if (isNativeApp) {
+        await Share.share({ title: story.title, text: story.introduction, url, dialogTitle: `Share ${story.title}` });
+      } else if (navigator.share) {
         await navigator.share({ title: story.title, text: story.introduction, url });
       } else {
         await navigator.clipboard.writeText(url);
@@ -320,6 +368,57 @@ function App() {
       }
     } catch (error) {
       if (error?.name !== 'AbortError') setShareMessage('Could not share this link.');
+    }
+  };
+
+  const enablePushNotifications = async () => {
+    if (!isNativeApp || pushState === 'registering') return;
+    setMenuOpen(false);
+    setPushState('registering');
+    try {
+      let permission = await PushNotifications.checkPermissions();
+      if (permission.receive === 'prompt') permission = await PushNotifications.requestPermissions();
+      if (permission.receive !== 'granted') {
+        setPushState('denied');
+        setInstallMessage('Notifications were not enabled. You can allow them later in Android settings.');
+        return;
+      }
+      await PushNotifications.removeAllListeners();
+      await PushNotifications.createChannel({
+        id: 'new_writing',
+        name: 'New writing',
+        description: 'Alerts when AiLit publishes a new piece.',
+        importance: 4,
+        visibility: 1,
+        vibration: true,
+      });
+      await PushNotifications.addListener('registration', async ({ value }) => {
+        const { error } = await supabase.functions.invoke('push-notifications', {
+          body: { action: 'register', token: value, platform: 'android' },
+        });
+        if (error) {
+          setPushState('error');
+          setInstallMessage('This device could not be registered for alerts.');
+          return;
+        }
+        window.localStorage.setItem('ailit-push-enabled', 'true');
+        setPushState('enabled');
+        setInstallMessage('New-writing notifications are enabled.');
+      });
+      await PushNotifications.addListener('registrationError', () => {
+        setPushState('error');
+        setInstallMessage('Notifications could not be enabled on this device.');
+      });
+      await PushNotifications.addListener('pushNotificationActionPerformed', ({ notification }) => {
+        const path = notification.data?.path || '/';
+        window.history.pushState({}, '', path);
+        if (path.startsWith('/writing/')) loadStories();
+        else navigateTo(routeView(), path);
+      });
+      await PushNotifications.register();
+    } catch {
+      setPushState('error');
+      setInstallMessage('Notifications could not be enabled on this device.');
     }
   };
 
@@ -415,12 +514,13 @@ function App() {
     if (wasEditing) {
       setMessage('Writing updated and republished successfully.');
     } else {
-      const { data: newsletterData, error: newsletterError } = await supabase.functions.invoke('newsletter', {
-        body: { action: 'notify', story: publishedStory },
-      });
+      const [{ data: newsletterData, error: newsletterError }, { error: pushError }] = await Promise.all([
+        supabase.functions.invoke('newsletter', { body: { action: 'notify', story: publishedStory } }),
+        supabase.functions.invoke('push-notifications', { body: { action: 'notify', story: publishedStory } }),
+      ]);
       setMessage(newsletterError
         ? `Published successfully, but the newsletter could not be sent${newsletterError.message ? `: ${newsletterError.message}` : '.'}`
-        : `Published successfully. Newsletter sent to ${newsletterData.sent} subscriber${newsletterData.sent === 1 ? '' : 's'}.`);
+        : `Published successfully. Newsletter sent to ${newsletterData.sent} subscriber${newsletterData.sent === 1 ? '' : 's'}${pushError ? '; app alerts are not configured yet.' : ', and app alerts were queued.'}`);
     }
   };
 
@@ -685,6 +785,29 @@ function App() {
     );
   }
 
+  if (view === 'privacy') {
+    return (
+      <main className="privacy-page">
+        <header className="editor-header">
+          <button className="brand" onClick={() => navigateTo('home', '/')}><img src="/ailit-logo.png" alt="" /><span>AiLit</span></button>
+          <span>Privacy</span>
+          <button className="editor-exit" onClick={() => navigateTo('home', '/')}><X size={19} /> Close</button>
+        </header>
+        <article className="privacy-content">
+          <span className="eyebrow">AiLit Magazine · Privacy policy</span>
+          <h1>Your reading life<br />belongs to you.</h1>
+          <p className="privacy-updated">Effective June 13, 2026</p>
+          <section><h2>Information we collect</h2><p>AiLit collects an email address when you join the newsletter. When you submit work, we collect the name, email, designation, biography, manuscript, and optional photograph you provide. The Android app stores a device notification token only when you choose to enable new-writing alerts.</p></section>
+          <section><h2>How information is used</h2><p>We use this information to deliver newsletters and publication alerts, review literary submissions, contact contributors, administer the magazine, and keep the service secure. AiLit does not sell personal information or use it for third-party advertising.</p></section>
+          <section><h2>Service providers</h2><p>Data is processed using Supabase for authentication, database, file storage, and server functions; Resend for newsletter delivery; Firebase Cloud Messaging for optional Android notifications; and Vercel for website hosting.</p></section>
+          <section><h2>Choices and deletion</h2><p>Newsletter messages include an unsubscribe link. Android notifications can be disabled in device settings. To request access to or deletion of submission information, email <a href="mailto:ailitmagazine@gmail.com">ailitmagazine@gmail.com</a>.</p></section>
+          <section><h2>Security and retention</h2><p>AiLit limits administrative access and keeps submission files in protected storage. Information is retained only as long as reasonably necessary for editorial, legal, operational, and security purposes.</p></section>
+          <section><h2>Contact</h2><p>Questions about this policy may be sent to <a href="mailto:ailitmagazine@gmail.com">ailitmagazine@gmail.com</a>.</p></section>
+        </article>
+      </main>
+    );
+  }
+
   if (view === 'submit') {
     return (
       <main className="submission-page">
@@ -775,7 +898,9 @@ function App() {
           <button onClick={() => scrollTo('newsletter')}>Newsletter</button>
           <button onClick={() => navigateTo('submit', '/submit')}>Submit</button>
           <button onClick={() => navigateTo('about', '/about')}>About</button>
-          <button onClick={installWebApp}>{isStandalone ? 'Open Installed App' : 'Install Web App'}</button>
+          {isNativeApp
+            ? <button onClick={enablePushNotifications}>{pushState === 'registering' ? 'Enabling Alerts...' : pushState === 'enabled' ? 'New Writing Alerts On' : 'Enable New Writing Alerts'}</button>
+            : <button onClick={installWebApp}>{isStandalone ? 'Open Installed App' : 'Install Web App'}</button>}
         </nav>
         <div className="header-actions">
           <button className="menu-button" onClick={() => setMenuOpen(!menuOpen)} aria-label="Toggle menu">{menuOpen ? <X /> : <Menu />}</button>
@@ -799,7 +924,7 @@ function App() {
         </form>
         {newsletterMessage && <p className="newsletter-message" role="status">{newsletterMessage}</p>}
       </section>
-      <footer><div className="footer-brand"><img src="/ailit-logo.png" alt="" /><span>AiLit</span><p>A literary magazine for language, imagination, and Artificial Intelligence.</p></div><div className="copyright">© 2026 AiLit Magazine <span>Made by humans, with questions.</span></div></footer>
+      <footer><div className="footer-brand"><img src="/ailit-logo.png" alt="" /><span>AiLit</span><p>A literary magazine for language, imagination, and Artificial Intelligence.</p></div><div className="copyright">© 2026 AiLit Magazine <button onClick={() => navigateTo('privacy', '/privacy')}>Privacy</button><span>Made by humans, with questions.</span></div></footer>
       {newsletterPopupOpen && <div className="newsletter-popup-backdrop" role="presentation" onMouseDown={(event) => { if (event.target === event.currentTarget) closeNewsletterPopup(); }}>
         <section className="newsletter-popup" role="dialog" aria-modal="true" aria-labelledby="newsletter-popup-title">
           <button className="newsletter-popup-close" type="button" onClick={closeNewsletterPopup} aria-label="Close newsletter invitation"><X size={21} /></button>

@@ -30,6 +30,15 @@ const pageDetails = async (path) => {
     };
   }
 
+  if (path === '/privacy') {
+    return {
+      title: 'Privacy Policy - AiLit Magazine',
+      description: 'How AiLit Magazine handles newsletter, submission, and Android notification information.',
+      image: `${SITE_URL}/og-image.png`,
+      type: 'website',
+    };
+  }
+
   const writingMatch = path.match(/^\/writing\/([0-9a-f-]{36})$/i);
   if (writingMatch) {
     const response = await fetch(

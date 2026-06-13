@@ -5,3 +5,12 @@ dist/
 *.log
 
 .vercel
+android/.gradle/
+android/local.properties
+android/app/build/
+android/build/
+android/.idea/
+android/app/google-services.json
+*.jks
+*.keystore
+keystore.properties

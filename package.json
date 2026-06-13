@@ -6,9 +6,20 @@
   "scripts": {
     "dev": "vite",
     "build": "vite build",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "android:sync": "npm run build && cap sync android",
+    "android:open": "cap open android",
+    "android:run": "cap run android",
+    "android:bundle": "npm run android:sync && cd android && gradlew.bat bundleRelease"
   },
   "dependencies": {
+    "@capacitor/app": "^8.1.0",
+    "@capacitor/browser": "^8.0.3",
+    "@capacitor/core": "^8.4.0",
+    "@capacitor/push-notifications": "^8.1.1",
+    "@capacitor/share": "^8.0.1",
+    "@capacitor/splash-screen": "^8.0.1",
+    "@capacitor/status-bar": "^8.0.2",
     "@supabase/supabase-js": "^2.107.0",
     "@vitejs/plugin-react": "^4.3.4",
     "lucide-react": "^0.468.0",
@@ -16,5 +27,10 @@
     "react-dom": "^18.3.1",
     "sharp": "^0.34.3",
     "vite": "^6.0.5"
+  },
+  "devDependencies": {
+    "@capacitor/android": "^8.4.0",
+    "@capacitor/cli": "^8.4.0",
+    "typescript": "^6.0.3"
   }
 }
