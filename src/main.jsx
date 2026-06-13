@@ -446,6 +446,7 @@ function App() {
 
   const submitWriting = async (event) => {
     event.preventDefault();
+    const form = event.currentTarget;
     if (!submissionManuscript) return setSubmissionMessage('Upload your manuscript.');
     if (submissionPicture && submissionPicture.size > 1024 * 1024) return setSubmissionMessage('Your picture must be 1 MB or smaller.');
     if (submissionManuscript.size > 5 * 1024 * 1024) return setSubmissionMessage('Your manuscript must be 5 MB or smaller.');
@@ -462,9 +463,10 @@ function App() {
     setSubmission({ name: '', email: '', designation: '', shortBio: '' });
     setSubmissionPicture(null);
     setSubmissionManuscript(null);
-    event.currentTarget.reset();
+    form.reset();
     setSubmissionMessage('Successfully Submitted');
     setSubmissionSuccess(true);
+    requestAnimationFrame(() => document.querySelector('.submission-success')?.scrollIntoView({ behavior: 'smooth', block: 'center' }));
   };
 
   const loadSubmissions = async () => {
