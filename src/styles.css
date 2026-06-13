@@ -167,8 +167,11 @@ footer a { color:inherit;text-decoration:none;display:block;font:14px var(--seri
 .about-content h1 { grid-column:2; font:500 clamp(60px,8vw,125px)/.9 var(--serif); letter-spacing:-.055em; margin:0 0 65px; }
 .about-copy { grid-column:2; max-width:750px; border-top:1px solid var(--line); padding-top:38px; display:grid; grid-template-columns:1fr 1fr; gap:35px; }
 .about-copy p { font:18px/1.75 var(--serif); margin:0; }
-.about-art { grid-column:2; margin:55px 0 0; max-width:760px; border:1px solid var(--line); padding:14px; background:#e8e1d4; }
-.about-art img { display:block; width:100%; aspect-ratio:1.45; object-fit:cover; }
+.about-contact { grid-column:2; max-width:750px; margin-top:65px; padding:25px 0; border-top:1px solid var(--ink); border-bottom:1px solid var(--line); display:grid; grid-template-columns:.55fr 1.45fr; gap:35px; }
+.about-contact>span { font:9px var(--mono); letter-spacing:.14em; text-transform:uppercase; }
+.about-contact p { margin:0 0 15px; color:#68655e; font:15px/1.5 var(--serif); }
+.about-contact a { color:var(--ink); font:500 clamp(20px,2.2vw,30px)/1.2 var(--serif); text-decoration:none; display:flex; align-items:center; justify-content:space-between; gap:20px; overflow-wrap:anywhere; }
+.about-contact a:hover { color:var(--red); }
 .submission-page { min-height:100vh; background:var(--paper); }
 .submission-content { max-width:1180px; margin:auto; padding:90px 5vw 130px; display:grid; grid-template-columns:.78fr 1.22fr; gap:9vw; }
 .submission-intro h1 { font:500 clamp(50px,6vw,88px)/.94 var(--serif); letter-spacing:-.05em; margin:22px 0 30px; }
@@ -285,6 +288,18 @@ footer a { color:inherit;text-decoration:none;display:block;font:14px var(--seri
 .login-panel input { border:0; border-bottom:1px solid var(--line); background:transparent; padding:12px 2px; outline:0; font:17px var(--serif); }
 .admin-close { position:absolute; right:22px; top:20px; border:0; background:none; }
 .install-toast { position:fixed; left:50%; bottom:24px; z-index:70; transform:translateX(-50%); max-width:min(520px,calc(100vw - 32px)); background:var(--ink); color:var(--paper); padding:14px 18px; border:1px solid rgba(255,255,255,.18); box-shadow:0 18px 45px rgba(0,0,0,.22); font:12px/1.5 var(--mono); text-align:center; }
+.newsletter-popup-backdrop { position:fixed; inset:0; z-index:100; padding:24px; background:rgba(20,19,16,.68); backdrop-filter:blur(5px); display:grid; place-items:center; }
+.newsletter-popup { width:min(570px,100%); position:relative; background:var(--paper); padding:58px 60px 48px; box-shadow:0 30px 90px rgba(0,0,0,.28); text-align:left; }
+.newsletter-popup>img { width:42px; margin-bottom:30px; }
+.newsletter-popup h2 { margin:12px 0 20px; font:500 clamp(48px,6vw,72px)/.92 var(--serif); letter-spacing:-.045em; }
+.newsletter-popup>p { max-width:430px; margin:0; color:#68655e; font:17px/1.6 var(--serif); }
+.newsletter-popup-close { position:absolute; top:20px; right:20px; width:42px; height:42px; border:1px solid var(--line); background:transparent; display:grid; place-items:center; cursor:pointer; }
+.newsletter-popup form { margin-top:36px; display:grid; grid-template-columns:1fr auto; border-bottom:1px solid var(--ink); }
+.newsletter-popup input { min-width:0; border:0; background:transparent; padding:15px 4px; outline:0; font:16px var(--serif); }
+.newsletter-popup form button { border:0; background:transparent; padding:10px 4px 10px 20px; display:flex; align-items:center; gap:9px; color:var(--red); font:700 10px var(--mono); letter-spacing:.08em; text-transform:uppercase; cursor:pointer; }
+.newsletter-popup form button:disabled { opacity:.55; }
+.newsletter-popup small { display:block; margin-top:17px; color:#77736a; font:9px/1.5 var(--mono); letter-spacing:.06em; text-transform:uppercase; }
+.newsletter-popup-message { margin:15px 0 0!important; color:var(--red)!important; font:11px/1.5 var(--mono)!important; }
 
 @media (max-width:800px) {
   .site-header { height:70px; }.menu-button{display:block}.text-button{display:none}
@@ -297,7 +312,7 @@ footer a { color:inherit;text-decoration:none;display:block;font:14px var(--seri
   .issue-row{grid-template-columns:60px 1fr 25px}.mini-cover{height:75px}.issue-num,.issue-row>span:last-of-type{display:none}.issue-row h3{font-size:23px}
   .submit{grid-template-columns:1fr;gap:45px}footer{grid-template-columns:1fr}.footer-brand{grid-column:1/-1}.copyright{flex-direction:column;gap:12px}
   .empty-writing{align-items:flex-start;flex-direction:column;justify-content:center;gap:20px}.writing-editor{grid-template-columns:1fr;padding-top:60px}.editor-row{grid-template-columns:1fr}.editor-header>span{display:none}.editor-header{grid-template-columns:1fr 1fr}
-  .about-content{grid-template-columns:1fr;padding-top:70px}.about-content>.eyebrow,.about-content h1,.about-copy,.about-art{grid-column:1}.about-content h1{margin-bottom:45px}.about-copy{grid-template-columns:1fr}
+  .about-content{grid-template-columns:1fr;padding-top:70px}.about-content>.eyebrow,.about-content h1,.about-copy,.about-contact{grid-column:1}.about-content h1{margin-bottom:45px}.about-copy{grid-template-columns:1fr}.about-contact{grid-template-columns:1fr}
   .submission-content{grid-template-columns:1fr;gap:55px;padding-top:70px}
   .reading-article{padding-top:70px}.reading-heading{margin-bottom:45px}.reading-image{margin-bottom:45px}.reading-cover{margin-bottom:45px}.reading-cover .reading-image{margin-bottom:0}.reading-body{font-size:18px}
 }
@@ -392,8 +407,13 @@ footer a { color:inherit;text-decoration:none;display:block;font:14px var(--seri
   .about-content h1 { font-size:clamp(46px,14vw,64px); line-height:.96; }
   .about-copy { padding-top:28px; gap:24px; }
   .about-copy p { font-size:17px; line-height:1.7; }
-  .about-art { margin-top:34px; padding:10px; }
-  .about-art img { aspect-ratio:1.05; }
+  .about-contact { margin-top:45px; gap:20px; }
+  .newsletter-popup-backdrop { padding:14px; }
+  .newsletter-popup { padding:48px 24px 34px; }
+  .newsletter-popup h2 { font-size:46px; }
+  .newsletter-popup form { grid-template-columns:1fr; border-bottom:0; gap:12px; }
+  .newsletter-popup input { border-bottom:1px solid var(--ink); }
+  .newsletter-popup form button { justify-content:space-between; background:var(--ink); color:var(--paper); padding:14px 16px; }
   .submission-content { padding:54px 22px 78px; gap:40px; }
   .submission-intro h1 { font-size:clamp(44px,13vw,60px); }
   .submission-row,.submission-uploads { grid-template-columns:1fr; }

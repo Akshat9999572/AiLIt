@@ -113,6 +113,7 @@ function App() {
   const [newsletterEmail, setNewsletterEmail] = useState('');
   const [newsletterMessage, setNewsletterMessage] = useState('');
   const [newsletterSaving, setNewsletterSaving] = useState(false);
+  const [newsletterPopupOpen, setNewsletterPopupOpen] = useState(false);
   const [submission, setSubmission] = useState({ name: '', email: '', designation: '', shortBio: '' });
   const [submissionPicture, setSubmissionPicture] = useState(null);
   const [submissionManuscript, setSubmissionManuscript] = useState(null);
@@ -129,6 +130,12 @@ function App() {
   const [inlineImageUploading, setInlineImageUploading] = useState(false);
   const [imageFile, setImageFile] = useState(null);
   const [draft, setDraft] = useState({ type: 'Article', title: '', author: '', introduction: '', image: '', imageDescription: '' });
+
+  useEffect(() => {
+    if (window.localStorage.getItem('ailit-newsletter-invitation-seen')) return;
+    const popupTimer = window.setTimeout(() => setNewsletterPopupOpen(true), 900);
+    return () => window.clearTimeout(popupTimer);
+  }, []);
 
   useEffect(() => {
     loadStories();
@@ -428,6 +435,13 @@ function App() {
     if (error) return setNewsletterMessage('Subscription failed. Please check the email and try again.');
     setNewsletterEmail('');
     setNewsletterMessage(data.message);
+    window.localStorage.setItem('ailit-newsletter-invitation-seen', 'true');
+    setNewsletterPopupOpen(false);
+  };
+
+  const closeNewsletterPopup = () => {
+    window.localStorage.setItem('ailit-newsletter-invitation-seen', 'true');
+    setNewsletterPopupOpen(false);
   };
 
   const submitWriting = async (event) => {
@@ -650,9 +664,10 @@ function App() {
             <p>AiLit stands for Artificial Intelligence and Literature. It is a literary magazine that encourages a thoughtful fusion of computational tools with human storytelling, poetry, criticism, and imagination.</p>
             <p>We believe this meeting matters because AI can help readers discover new patterns and help writers approach language from unfamiliar directions. AiLit keeps human voice, judgment, and creativity at the centre while exploring how technology can open new possibilities for literature.</p>
           </div>
-          <figure className="about-art">
-            <img src="/about-ai-literature.png" alt="Abstract artwork of pages and neural traces representing AI and literature" />
-          </figure>
+          <aside className="about-contact">
+            <span>Contact</span>
+            <div><p>Editorial enquiries, collaborations, and correspondence</p><a href="mailto:ailitmagazine@gmail.com">ailitmagazine@gmail.com <ArrowRight size={18} /></a></div>
+          </aside>
         </section>
       </main>
     );
@@ -773,6 +788,22 @@ function App() {
         {newsletterMessage && <p className="newsletter-message" role="status">{newsletterMessage}</p>}
       </section>
       <footer><div className="footer-brand"><img src="/ailit-logo.png" alt="" /><span>AiLit</span><p>A literary magazine for language, imagination, and Artificial Intelligence.</p></div><div className="copyright">© 2026 AiLit Magazine <span>Made by humans, with questions.</span></div></footer>
+      {newsletterPopupOpen && <div className="newsletter-popup-backdrop" role="presentation" onMouseDown={(event) => { if (event.target === event.currentTarget) closeNewsletterPopup(); }}>
+        <section className="newsletter-popup" role="dialog" aria-modal="true" aria-labelledby="newsletter-popup-title">
+          <button className="newsletter-popup-close" type="button" onClick={closeNewsletterPopup} aria-label="Close newsletter invitation"><X size={21} /></button>
+          <img src="/ailit-logo.png" alt="" />
+          <span className="eyebrow">The AiLit newsletter</span>
+          <h2 id="newsletter-popup-title">Stay close to<br />new writing.</h2>
+          <p>Receive a quiet note when a new article or poem enters the magazine.</p>
+          <form onSubmit={subscribeToNewsletter}>
+            <label className="sr-only" htmlFor="newsletter-popup-email">Email address</label>
+            <input id="newsletter-popup-email" type="email" placeholder="Your email address" value={newsletterEmail} onChange={(event) => setNewsletterEmail(event.target.value)} required autoFocus />
+            <button type="submit" disabled={newsletterSaving}>{newsletterSaving ? 'Joining...' : <>Subscribe <ArrowRight size={17} /></>}</button>
+          </form>
+          {newsletterMessage && <p className="newsletter-popup-message" role="status">{newsletterMessage}</p>}
+          <small>Occasional letters only. Unsubscribe at any time.</small>
+        </section>
+      </div>}
       {installMessage && <div className="install-toast" role="status">{installMessage}</div>}
 
     </main>
