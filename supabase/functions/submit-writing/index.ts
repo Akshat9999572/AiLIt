@@ -41,7 +41,6 @@ Deno.serve(async (request) => {
   try {
     if ((request.headers.get("content-type") || "").includes("application/json")) {
       const payload = await request.json();
-      if (payload.action !== "list") return respond({ error: "Unknown action." }, 400, origin);
 
       const secretKeys = JSON.parse(Deno.env.get("SUPABASE_SECRET_KEYS") || "{}");
       const secretKey = secretKeys.default || Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
@@ -54,6 +53,25 @@ Deno.serve(async (request) => {
         .eq("user_id", userData.user.id).maybeSingle();
       if (!admin) return respond({ error: "Admin access required." }, 403, origin);
 
+      if (payload.action === "delete") {
+        const submissionId = String(payload.submissionId || "");
+        if (!/^[0-9a-f-]{36}$/i.test(submissionId)) return respond({ error: "Invalid submission." }, 400, origin);
+        const { data: submission, error: findError } = await supabase.from("submissions")
+          .select("picture_path, manuscript_path").eq("id", submissionId).maybeSingle();
+        if (findError) throw findError;
+        if (!submission) return respond({ error: "Submission not found." }, 404, origin);
+        const storagePaths = [submission.picture_path, submission.manuscript_path].filter(Boolean);
+        if (storagePaths.length) {
+          const { error: storageError } = await supabase.storage.from("submissions").remove(storagePaths);
+          if (storageError) throw storageError;
+        }
+        const { error: deleteError } = await supabase.from("submissions").delete().eq("id", submissionId);
+        if (deleteError) throw deleteError;
+        return respond({ message: "Submission deleted." }, 200, origin);
+      }
+
+      if (payload.action !== "list") return respond({ error: "Unknown action." }, 400, origin);
+
       const { data: submissions, error: submissionsError } = await supabase
         .from("submissions")
         .select("*")
@@ -62,7 +80,9 @@ Deno.serve(async (request) => {
 
       const items = await Promise.all((submissions || []).map(async (submission) => {
         const [{ data: picture }, { data: manuscript }] = await Promise.all([
-          supabase.storage.from("submissions").createSignedUrl(submission.picture_path, 3600),
+          submission.picture_path
+            ? supabase.storage.from("submissions").createSignedUrl(submission.picture_path, 3600)
+            : Promise.resolve({ data: null }),
           supabase.storage.from("submissions").createSignedUrl(submission.manuscript_path, 3600, {
             download: submission.manuscript_name,
           }),
@@ -95,7 +115,7 @@ Deno.serve(async (request) => {
     if (!shortBio || shortBio.length > 1000) {
       return respond({ error: "Short bio must be between 1 and 1000 characters." }, 400, origin);
     }
-    if (!(picture instanceof File) || !imageTypes.has(picture.type) || picture.size > 1024 * 1024) {
+    if (picture instanceof File && picture.size > 0 && (!imageTypes.has(picture.type) || picture.size > 1024 * 1024)) {
       return respond({ error: "Upload a JPG, PNG, WebP, or GIF picture up to 1 MB." }, 400, origin);
     }
     if (!(manuscript instanceof File) || !manuscriptTypes.has(manuscript.type) || manuscript.size > 5 * 1024 * 1024) {
@@ -106,19 +126,22 @@ Deno.serve(async (request) => {
     const secretKey = secretKeys.default || Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
     const supabase = createClient(Deno.env.get("SUPABASE_URL") || "", secretKey || "");
     const submissionId = crypto.randomUUID();
-    const picturePath = `${submissionId}/portrait-${cleanFileName(picture.name)}`;
+    const hasPicture = picture instanceof File && picture.size > 0;
+    const picturePath = hasPicture ? `${submissionId}/portrait-${cleanFileName(picture.name)}` : null;
     const manuscriptPath = `${submissionId}/manuscript-${cleanFileName(manuscript.name)}`;
 
-    const { error: pictureError } = await supabase.storage
-      .from("submissions")
-      .upload(picturePath, picture, { contentType: picture.type, upsert: false });
-    if (pictureError) throw pictureError;
+    if (hasPicture && picturePath) {
+      const { error: pictureError } = await supabase.storage
+        .from("submissions")
+        .upload(picturePath, picture, { contentType: picture.type, upsert: false });
+      if (pictureError) throw pictureError;
+    }
 
     const { error: manuscriptError } = await supabase.storage
       .from("submissions")
       .upload(manuscriptPath, manuscript, { contentType: manuscript.type, upsert: false });
     if (manuscriptError) {
-      await supabase.storage.from("submissions").remove([picturePath]);
+      if (picturePath) await supabase.storage.from("submissions").remove([picturePath]);
       throw manuscriptError;
     }
 
@@ -134,7 +157,7 @@ Deno.serve(async (request) => {
     });
 
     if (insertError) {
-      await supabase.storage.from("submissions").remove([picturePath, manuscriptPath]);
+      await supabase.storage.from("submissions").remove([picturePath, manuscriptPath].filter(Boolean));
       throw insertError;
     }
 

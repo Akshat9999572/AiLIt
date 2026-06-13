@@ -446,15 +446,15 @@ function App() {
 
   const submitWriting = async (event) => {
     event.preventDefault();
-    if (!submissionPicture || !submissionManuscript) return setSubmissionMessage('Upload both your picture and manuscript.');
-    if (submissionPicture.size > 1024 * 1024) return setSubmissionMessage('Your picture must be 1 MB or smaller.');
+    if (!submissionManuscript) return setSubmissionMessage('Upload your manuscript.');
+    if (submissionPicture && submissionPicture.size > 1024 * 1024) return setSubmissionMessage('Your picture must be 1 MB or smaller.');
     if (submissionManuscript.size > 5 * 1024 * 1024) return setSubmissionMessage('Your manuscript must be 5 MB or smaller.');
     setSubmissionSaving(true);
     setSubmissionMessage('');
     setSubmissionSuccess(false);
     const formData = new FormData();
     Object.entries(submission).forEach(([key, value]) => formData.append(key, value));
-    formData.append('picture', submissionPicture);
+    if (submissionPicture) formData.append('picture', submissionPicture);
     formData.append('manuscript', submissionManuscript);
     const { data, error } = await supabase.functions.invoke('submit-writing', { body: formData });
     setSubmissionSaving(false);
@@ -463,7 +463,7 @@ function App() {
     setSubmissionPicture(null);
     setSubmissionManuscript(null);
     event.currentTarget.reset();
-    setSubmissionMessage(data.message);
+    setSubmissionMessage('Successfully Submitted');
     setSubmissionSuccess(true);
   };
 
@@ -475,6 +475,15 @@ function App() {
     setSubmissionsLoading(false);
     if (error) return;
     setAdminSubmissions(data.submissions || []);
+  };
+
+  const deleteSubmission = async (item) => {
+    if (!isAdmin || !window.confirm(`Delete the submission from ${item.name}? This cannot be undone.`)) return;
+    const { error } = await supabase.functions.invoke('submit-writing', {
+      body: { action: 'delete', submissionId: item.id },
+    });
+    if (error) return setMessage('The submission could not be deleted.');
+    setAdminSubmissions((current) => current.filter((submissionItem) => submissionItem.id !== item.id));
   };
 
   const editWriting = (story) => {
@@ -639,6 +648,7 @@ function App() {
                     <div><b>Email</b><a href={`mailto:${item.email}`}>{item.email}</a></div>
                     <div><b>Short bio</b><p>{item.short_bio}</p></div>
                     <div><b>Manuscript</b>{item.manuscript_url ? <a className="download-link" href={item.manuscript_url}>Download {item.manuscript_name} <ArrowRight size={14} /></a> : <span>Unavailable</span>}</div>
+                    <button className="delete-submission-button" type="button" onClick={() => deleteSubmission(item)}><Trash2 size={17} /> Delete submission</button>
                   </div>
                 </article>
               ))}
@@ -698,9 +708,9 @@ function App() {
             <div className="submission-uploads">
               <label className="submission-upload">
                 <ImagePlus size={25} />
-                <b>{submissionPicture ? submissionPicture.name : 'Upload your picture'}</b>
-                <span>JPG, PNG, WebP, or GIF, up to 1 MB</span>
-                <input type="file" accept="image/jpeg,image/png,image/webp,image/gif" onChange={(event) => setSubmissionPicture(event.target.files?.[0] || null)} required />
+                <b>{submissionPicture ? submissionPicture.name : 'Upload your picture (optional)'}</b>
+                <span>Optional · JPG, PNG, WebP, or GIF, up to 1 MB</span>
+                <input type="file" accept="image/jpeg,image/png,image/webp,image/gif" onChange={(event) => setSubmissionPicture(event.target.files?.[0] || null)} />
               </label>
               <label className="submission-upload">
                 <Feather size={25} />
