@@ -128,7 +128,7 @@ function App() {
   const [saving, setSaving] = useState(false);
   const [inlineImageUploading, setInlineImageUploading] = useState(false);
   const [imageFile, setImageFile] = useState(null);
-  const [draft, setDraft] = useState({ type: 'Article', title: '', author: '', introduction: '', image: '' });
+  const [draft, setDraft] = useState({ type: 'Article', title: '', author: '', introduction: '', image: '', imageDescription: '' });
 
   useEffect(() => {
     loadStories();
@@ -388,6 +388,7 @@ function App() {
       title: draft.title,
       author: draft.author,
       introduction: draft.introduction,
+      image_description: draft.imageDescription.trim() || null,
       body: editorRef.current.innerHTML,
       created_by: session.user.id,
     };
@@ -398,7 +399,7 @@ function App() {
     const { data: publishedStory, error } = await query.select().single();
     setSaving(false);
     if (error) return setMessage(error.message);
-    setDraft({ type: 'Article', title: '', author: '', introduction: '', image: '' });
+    setDraft({ type: 'Article', title: '', author: '', introduction: '', image: '', imageDescription: '' });
     setImageFile(null);
     setEditingStoryId(null);
     await loadStories();
@@ -469,6 +470,7 @@ function App() {
       author: story.author,
       introduction: story.introduction,
       image: story.image_url || '',
+      imageDescription: story.image_description || '',
     });
     setImageFile(null);
     if (editorRef.current) editorRef.current.innerHTML = story.body || '';
@@ -591,8 +593,9 @@ function App() {
               {draft.image ? <img src={draft.image} alt="Upload preview" /> : <><ImagePlus size={28} /><b>Upload a picture</b><span>Choose an image up to 10 MB.</span></>}
               <input type="file" accept="image/*,.heic,.heif,.tif,.tiff,.bmp,.svg" onChange={uploadImage} />
             </label>
+            <label>Cover image description<textarea value={draft.imageDescription} onChange={(event) => setDraft({ ...draft, imageDescription: event.target.value })} placeholder="Describe the image, artwork, or source" /></label>
             {message && <p className="form-message">{message}</p>}
-            <div className="editor-actions"><button type="button" onClick={() => { if (editingStoryId) { setEditingStoryId(null); setDraft({ type: 'Article', title: '', author: '', introduction: '', image: '' }); if (editorRef.current) editorRef.current.innerHTML = ''; } else window.location.assign('/'); }}>Cancel</button><button className="solid-button" type="submit" disabled={saving}>{saving ? 'Publishing...' : editingStoryId ? 'Republish' : 'Publish writing'} <ArrowRight size={18} /></button></div>
+            <div className="editor-actions"><button type="button" onClick={() => { if (editingStoryId) { setEditingStoryId(null); setDraft({ type: 'Article', title: '', author: '', introduction: '', image: '', imageDescription: '' }); if (editorRef.current) editorRef.current.innerHTML = ''; } else window.location.assign('/'); }}>Cancel</button><button className="solid-button" type="submit" disabled={saving}>{saving ? 'Publishing...' : editingStoryId ? 'Republish' : 'Publish writing'} <ArrowRight size={18} /></button></div>
           </div>
         </form>
         <section className="published-manager">
@@ -716,7 +719,7 @@ function App() {
             <button className="reading-share" onClick={(event) => shareStory(selectedStory, event)}><Share2 size={17} /> Share this writing</button>
             {shareMessage && <span className="share-message" role="status">{shareMessage}</span>}
           </div>
-          {selectedStory.image_url && <img className="reading-image" src={selectedStory.image_url} alt="" />}
+          {selectedStory.image_url && <figure className="reading-cover"><img className="reading-image" src={selectedStory.image_url} alt={selectedStory.image_description || ''} />{selectedStory.image_description && <figcaption>{selectedStory.image_description}</figcaption>}</figure>}
           <div className="reading-body" dangerouslySetInnerHTML={{ __html: selectedStory.body }} />
         </article>
       </main>
