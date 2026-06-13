@@ -222,6 +222,7 @@ function App() {
     setSelectedStory(null);
     setMenuOpen(false);
     window.scrollTo(0, 0);
+    requestAnimationFrame(() => window.scrollTo({ top: 0, left: 0, behavior: 'auto' }));
   };
 
   const installWebApp = async () => {
@@ -708,7 +709,7 @@ function App() {
         <header className="editor-header">
           <button className="brand" onClick={() => navigateTo('home', '/')}><img src="/ailit-logo.png" alt="" /><span>AiLit</span></button>
           <span>{selectedStory.type}</span>
-          <button className="editor-exit" onClick={() => { navigateTo('home', '/'); setTimeout(() => scrollTo('journal'), 0); }}><X size={19} /> Close</button>
+          <button className="editor-exit" onClick={() => navigateTo('home', '/')}><X size={19} /> Close</button>
         </header>
         <article className={`reading-article ${selectedStory.type === 'Poem' ? 'reading-poem' : ''}`}>
           <div className="reading-heading">
@@ -726,7 +727,7 @@ function App() {
               <img src="/ailit-logo.png" alt="" />
               <div><span>Published with</span><strong>AiLit Magazine</strong><p>Artificial Intelligence and Literature</p></div>
             </div>
-            <button onClick={() => { navigateTo('home', '/'); setTimeout(() => scrollTo('journal'), 0); }}>Home <ArrowRight size={18} /></button>
+            <button onClick={() => navigateTo('home', '/')}>Home <ArrowRight size={18} /></button>
           </footer>
         </article>
       </main>
@@ -742,7 +743,7 @@ function App() {
           <span>Artificial Intelligence<br />& Literature</span>
         </button>
         <nav className={menuOpen ? 'nav open' : 'nav'}>
-          <button onClick={() => { navigateTo('home', '/'); setTimeout(() => scrollTo('top'), 0); }}>Home</button>
+          <button onClick={() => navigateTo('home', '/')}>Home</button>
           <button onClick={() => scrollTo('journal')}>New Writing</button>
           <button onClick={() => scrollTo('newsletter')}>Newsletter</button>
           <button onClick={() => navigateTo('submit', '/submit')}>Submit</button>
