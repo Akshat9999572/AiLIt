@@ -458,7 +458,7 @@ function App() {
     formData.append('manuscript', submissionManuscript);
     const { data, error } = await supabase.functions.invoke('submit-writing', { body: formData });
     setSubmissionSaving(false);
-    if (error) return setSubmissionMessage('The submission could not be completed. Please check the files and try again.');
+    if (error) return setSubmissionMessage(error.message || 'The submission could not be completed. Please check the files and try again.');
     setSubmission({ name: '', email: '', designation: '', shortBio: '' });
     setSubmissionPicture(null);
     setSubmissionManuscript(null);

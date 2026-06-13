@@ -1,6 +1,8 @@
 import { createClient } from "npm:@supabase/supabase-js@2";
 
 const allowedOrigins = new Set([
+  "https://ailitmagazine.xyz",
+  "https://www.ailitmagazine.xyz",
   "https://ailit-xi.vercel.app",
   "http://localhost:4173",
   "http://localhost:5173",
@@ -21,8 +23,8 @@ const respond = (body: unknown, status = 200, origin = "") =>
     status,
     headers: {
       "Content-Type": "application/json",
-      "Access-Control-Allow-Origin": allowedOrigins.has(origin) ? origin : "https://ailit-xi.vercel.app",
-      "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
+      "Access-Control-Allow-Origin": allowedOrigins.has(origin) ? origin : "https://ailitmagazine.xyz",
+      "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type, x-supabase-api-version",
       "Access-Control-Allow-Methods": "POST, OPTIONS",
       "Vary": "Origin",
     },
