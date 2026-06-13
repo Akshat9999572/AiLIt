@@ -721,6 +721,13 @@ function App() {
           </div>
           {selectedStory.image_url && <figure className="reading-cover"><img className="reading-image" src={selectedStory.image_url} alt={selectedStory.image_description || ''} />{selectedStory.image_description && <figcaption>{selectedStory.image_description}</figcaption>}</figure>}
           <div className="reading-body" dangerouslySetInnerHTML={{ __html: selectedStory.body }} />
+          <footer className="article-colophon">
+            <div className="article-colophon-mark">
+              <img src="/ailit-logo.png" alt="" />
+              <div><span>Published with</span><strong>AiLit Magazine</strong><p>Artificial Intelligence and Literature</p></div>
+            </div>
+            <button onClick={() => { navigateTo('home', '/'); setTimeout(() => scrollTo('journal'), 0); }}>Home <ArrowRight size={18} /></button>
+          </footer>
         </article>
       </main>
     );
