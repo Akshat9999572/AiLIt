@@ -1,6 +1,6 @@
 import sharp from 'sharp';
 
-const SITE_URL = 'https://ailit-xi.vercel.app';
+const SITE_URL = 'https://ailitmagazine.xyz';
 const SUPABASE_URL = process.env.VITE_SUPABASE_URL || 'https://lvghjhjxntaeaukfcsrt.supabase.co';
 const SUPABASE_KEY = process.env.VITE_SUPABASE_PUBLISHABLE_KEY || 'sb_publishable_sELm91armEAnMH0fX8BCTw_aE9UgnZw';
 
