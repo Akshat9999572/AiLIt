@@ -636,7 +636,10 @@ function App() {
     if (!(options.body instanceof FormData)) headers['Content-Type'] = 'application/json';
     const response = await fetch(url, { ...options, headers });
     const data = await response.json().catch(() => ({}));
-    if (!response.ok) throw new Error(data.error || 'The editorial request failed.');
+    if (!response.ok) {
+      const detail = data.message ? `: ${data.message}` : '';
+      throw new Error(`${data.error || 'The editorial request failed.'}${detail}`);
+    }
     return data;
   };
 

@@ -98,7 +98,7 @@ VITE_SUPABASE_URL=https://your-project-ref.supabase.co
 VITE_SUPABASE_PUBLISHABLE_KEY=your-publishable-key
 SUPABASE_SERVICE_ROLE_KEY=your-service-role-key
 GEMINI_API_KEY=your-gemini-api-key
-GEMINI_MODEL=gemini-1.5-flash
+GEMINI_MODEL=gemini-3.1-flash-lite
 ```
 
 3. Run the local app:
@@ -119,7 +119,7 @@ vercel dev
 - `VITE_SUPABASE_PUBLISHABLE_KEY` - Supabase publishable key used by frontend features.
 - `SUPABASE_SERVICE_ROLE_KEY` - private server-only key used to write/read protected editorial records.
 - `GEMINI_API_KEY` - private server-only key used to call Gemini.
-- `GEMINI_MODEL` - optional Gemini model override.
+- `GEMINI_MODEL` - optional Gemini model override. The default production model is `gemini-3.1-flash-lite`.
 
 Never commit real API keys or secrets.
 

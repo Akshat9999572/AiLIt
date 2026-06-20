@@ -1,9 +1,8 @@
 const SUPABASE_URL = process.env.SUPABASE_URL || process.env.NEXT_PUBLIC_SUPABASE_URL || process.env.VITE_SUPABASE_URL || 'https://lvghjhjxntaeaukfcsrt.supabase.co';
 const SUPABASE_SERVICE_ROLE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY;
 const GEMINI_API_KEY = process.env.GEMINI_API_KEY;
-const GEMINI_PRIMARY_MODEL = 'gemini-2.0-flash';
-const GEMINI_CONFIGURED_MODEL = process.env.GEMINI_MODEL;
-const GEMINI_FALLBACK_MODEL = 'gemini-1.5-flash';
+const GEMINI_FALLBACK_MODEL = 'gemini-3.1-flash-lite';
+const GEMINI_MODEL = process.env.GEMINI_MODEL || GEMINI_FALLBACK_MODEL;
 
 const editorialFields = 'id,created_at,title,author_name,author_email,declared_genre,submission_text,summary,detected_genre,theme_fit_score,literary_quality_score,originality_score,fit_with_ailit_theme,strengths,weaknesses,editorial_recommendation,editor_notes,polite_response_email_draft,status';
 const allowedStatuses = new Set(['pending', 'accepted', 'maybe', 'revise', 'rejected']);
@@ -189,7 +188,7 @@ const callGeminiModel = async (model, prompt) => {
     logStep('gemini-failed', {
       status: response.status,
       model,
-      body: safeErrorBody(data || text),
+      message: safeErrorBody(message),
     });
     const error = new EditorialError('Gemini API failed', message, 502, 'GEMINI_FAILED');
     error.geminiStatus = response.status;
@@ -204,7 +203,7 @@ const analyzeWithGemini = async (submission) => {
   if (!GEMINI_API_KEY) throw new EditorialError('Missing environment variable', 'GEMINI_API_KEY is not configured.', 500, 'MISSING_ENV');
 
   const prompt = buildEditorialPrompt(submission);
-  const modelsToTry = [GEMINI_PRIMARY_MODEL, GEMINI_CONFIGURED_MODEL, GEMINI_FALLBACK_MODEL]
+  const modelsToTry = [GEMINI_MODEL, GEMINI_FALLBACK_MODEL]
     .filter(Boolean)
     .filter((model, index, models) => models.indexOf(model) === index);
 
@@ -219,6 +218,7 @@ const analyzeWithGemini = async (submission) => {
       logStep('gemini-model-retry', {
         model,
         status: error.geminiStatus,
+        message: safeErrorBody(error.geminiMessage || error.message),
       });
     }
   }
@@ -286,7 +286,7 @@ const diagnoseEditorial = async (request, response) => {
 
   try {
     const analysis = await analyzeWithGemini(submission);
-    result.gemini = { ok: true };
+    result.gemini = { ok: true, model: GEMINI_MODEL };
     result.parse = { ok: true, detected_genre: analysis.detected_genre, theme_fit_score: analysis.theme_fit_score };
     const probe = await supabaseRequest('/rest/v1/editorial_submissions?select=id&limit=1', { method: 'GET' });
     result.supabase = { ok: true, readable: Array.isArray(probe) };
@@ -355,11 +355,12 @@ export default async function handler(request, response) {
   } catch (error) {
     console.error('Editorial API error', {
       code: error.code || 'EDITORIAL_ERROR',
-      message: error.message,
+      message: safeErrorBody(error.message),
     });
     return sendJson(response, error.status || 500, {
       error: error.publicMessage || 'The editorial request failed.',
       code: error.code || 'EDITORIAL_ERROR',
+      message: safeErrorBody(error.message),
     });
   }
 }
