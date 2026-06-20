@@ -125,7 +125,13 @@ ${submission.submission_text}`;
     }),
   });
   const data = await response.json();
-  if (!response.ok) throw new Error(data?.error?.message || 'Gemini analysis failed.');
+  if (!response.ok) {
+    const message = data?.error?.message || 'Gemini analysis failed.';
+    if (/requests? to this api|api key|permission|blocked|not enabled|forbidden/i.test(message)) {
+      throw new Error('Gemini rejected the request. Check that GEMINI_API_KEY is a server-side Vercel Production environment variable, the Generative Language API is enabled for that Google project, and the API key is not restricted to browser referrers.');
+    }
+    throw new Error(message);
+  }
   return clampScores(normalizeAnalysis(parseGeminiJson(data)));
 };
 
