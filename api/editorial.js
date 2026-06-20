@@ -159,8 +159,8 @@ Submission:
 ${submission.submission_text}`;
 };
 
-const isUnsupportedGeminiModel = (status, message) =>
-  status === 404 || /not found|not supported|unsupported|is not found|model/i.test(message);
+const shouldTryNextGeminiModel = (status, message) =>
+  status === 404 || status === 429 || /not found|not supported|unsupported|is not found|model|quota exceeded|rate-limits?/i.test(message);
 
 const callGeminiModel = async (model, prompt) => {
   const endpoint = `https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(model)}:generateContent`;
@@ -215,8 +215,8 @@ const analyzeWithGemini = async (submission) => {
       return clampScores(normalizeAnalysis(parseGeminiJson(data)));
     } catch (error) {
       lastError = error;
-      if (!isUnsupportedGeminiModel(error.geminiStatus, error.geminiMessage || error.message)) throw error;
-      logStep('gemini-model-unsupported', {
+      if (!shouldTryNextGeminiModel(error.geminiStatus, error.geminiMessage || error.message)) throw error;
+      logStep('gemini-model-retry', {
         model,
         status: error.geminiStatus,
       });
@@ -285,9 +285,8 @@ const diagnoseEditorial = async (request, response) => {
   };
 
   try {
-    const data = await callGeminiModel(GEMINI_PRIMARY_MODEL, buildEditorialPrompt(submission));
-    result.gemini = { ok: true, model: GEMINI_PRIMARY_MODEL };
-    const analysis = clampScores(normalizeAnalysis(parseGeminiJson(data)));
+    const analysis = await analyzeWithGemini(submission);
+    result.gemini = { ok: true };
     result.parse = { ok: true, detected_genre: analysis.detected_genre, theme_fit_score: analysis.theme_fit_score };
     const probe = await supabaseRequest('/rest/v1/editorial_submissions?select=id&limit=1', { method: 'GET' });
     result.supabase = { ok: true, readable: Array.isArray(probe) };
