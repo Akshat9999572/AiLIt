@@ -1,7 +1,8 @@
 const SUPABASE_URL = process.env.SUPABASE_URL || process.env.NEXT_PUBLIC_SUPABASE_URL || process.env.VITE_SUPABASE_URL || 'https://lvghjhjxntaeaukfcsrt.supabase.co';
 const SUPABASE_SERVICE_ROLE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY;
 const GEMINI_API_KEY = process.env.GEMINI_API_KEY;
-const GEMINI_MODEL = process.env.GEMINI_MODEL || 'gemini-2.0-flash';
+const GEMINI_PRIMARY_MODEL = 'gemini-2.0-flash';
+const GEMINI_CONFIGURED_MODEL = process.env.GEMINI_MODEL;
 const GEMINI_FALLBACK_MODEL = 'gemini-1.5-flash';
 
 const editorialFields = 'id,created_at,title,author_name,author_email,declared_genre,submission_text,summary,detected_genre,theme_fit_score,literary_quality_score,originality_score,fit_with_ailit_theme,strengths,weaknesses,editorial_recommendation,editor_notes,polite_response_email_draft,status';
@@ -199,23 +200,26 @@ const analyzeWithGemini = async (submission) => {
   if (!GEMINI_API_KEY) throw new EditorialError('Missing environment variable', 'GEMINI_API_KEY is not configured.', 500, 'MISSING_ENV');
 
   const prompt = buildEditorialPrompt(submission);
-  let data;
-  try {
-    data = await callGeminiModel(GEMINI_MODEL, prompt);
-  } catch (error) {
-    if (GEMINI_MODEL !== GEMINI_FALLBACK_MODEL && isUnsupportedGeminiModel(error.geminiStatus, error.geminiMessage || error.message)) {
-      console.warn('Gemini primary model failed; trying fallback model', {
-        primaryModel: GEMINI_MODEL,
-        fallbackModel: GEMINI_FALLBACK_MODEL,
+  const modelsToTry = [GEMINI_PRIMARY_MODEL, GEMINI_CONFIGURED_MODEL, GEMINI_FALLBACK_MODEL]
+    .filter(Boolean)
+    .filter((model, index, models) => models.indexOf(model) === index);
+
+  let lastError;
+  for (const model of modelsToTry) {
+    try {
+      const data = await callGeminiModel(model, prompt);
+      return clampScores(normalizeAnalysis(parseGeminiJson(data)));
+    } catch (error) {
+      lastError = error;
+      if (!isUnsupportedGeminiModel(error.geminiStatus, error.geminiMessage || error.message)) throw error;
+      console.warn('Gemini model unsupported; trying next model if available', {
+        model,
         status: error.geminiStatus,
       });
-      data = await callGeminiModel(GEMINI_FALLBACK_MODEL, prompt);
-    } else {
-      throw error;
     }
   }
 
-  return clampScores(normalizeAnalysis(parseGeminiJson(data)));
+  throw lastError || new EditorialError('Gemini API failed', 'No Gemini model was available.', 502, 'GEMINI_FAILED');
 };
 
 const analyzeSubmission = async (request, response) => {
