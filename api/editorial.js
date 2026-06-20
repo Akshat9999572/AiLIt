@@ -12,6 +12,10 @@ const sendJson = (response, status, payload) => {
   response.status(status).json(payload);
 };
 
+const logStep = (step, details = {}) => {
+  console.log(JSON.stringify({ area: 'editorial-agent', step, ...details }));
+};
+
 class EditorialError extends Error {
   constructor(publicMessage, logMessage = publicMessage, status = 500, code = 'EDITORIAL_ERROR') {
     super(logMessage);
@@ -174,7 +178,7 @@ const callGeminiModel = async (model, prompt) => {
 
   const text = await response.text();
   const data = parseJsonMaybe(text);
-  console.info('Gemini API response', {
+  logStep('gemini-response', {
     status: response.status,
     ok: response.ok,
     model,
@@ -182,7 +186,7 @@ const callGeminiModel = async (model, prompt) => {
 
   if (!response.ok) {
     const message = data?.error?.message || 'Gemini analysis failed.';
-    console.error('Gemini API failed', {
+    logStep('gemini-failed', {
       status: response.status,
       model,
       body: safeErrorBody(data || text),
@@ -212,7 +216,7 @@ const analyzeWithGemini = async (submission) => {
     } catch (error) {
       lastError = error;
       if (!isUnsupportedGeminiModel(error.geminiStatus, error.geminiMessage || error.message)) throw error;
-      console.warn('Gemini model unsupported; trying next model if available', {
+      logStep('gemini-model-unsupported', {
         model,
         status: error.geminiStatus,
       });
@@ -224,6 +228,7 @@ const analyzeWithGemini = async (submission) => {
 
 const analyzeSubmission = async (request, response) => {
   const body = await readBody(request);
+  logStep('body-read', { hasTitle: Boolean(body?.title), hasSubmissionText: Boolean(body?.submission_text) });
   const submission = {
     title: cleanText(body.title, 300),
     author_name: cleanText(body.author_name, 200) || null,
@@ -240,18 +245,65 @@ const analyzeSubmission = async (request, response) => {
   }
 
   const analysis = await analyzeWithGemini(submission);
+  logStep('analysis-parsed', {
+    detectedGenre: analysis.detected_genre,
+    themeFitScore: analysis.theme_fit_score,
+  });
   let saved;
   try {
     [saved] = await supabaseRequest(`/rest/v1/editorial_submissions?select=${editorialFields}`, {
       method: 'POST',
       body: JSON.stringify({ ...submission, ...analysis, status: 'pending' }),
     });
+    logStep('supabase-saved', { id: saved?.id || null });
   } catch (error) {
     if (error instanceof EditorialError) throw error;
     console.error('Supabase save failed', { message: error.message });
     throw new EditorialError('Supabase save failed', error.message, 500, 'SUPABASE_FAILED');
   }
   return sendJson(response, 200, { submission: saved });
+};
+
+const diagnoseEditorial = async (request, response) => {
+  const submission = {
+    title: 'AiLit Diagnostic',
+    author_name: 'AiLit System',
+    author_email: 'diagnostic@example.com',
+    declared_genre: 'Poem',
+    submission_text: 'The machine offers a sentence. The editor asks what kind of human attention it deserves.',
+  };
+
+  const result = {
+    environment: {
+      GEMINI_API_KEY: Boolean(GEMINI_API_KEY),
+      SUPABASE_SERVICE_ROLE_KEY: Boolean(SUPABASE_SERVICE_ROLE_KEY),
+      SUPABASE_URL: Boolean(SUPABASE_URL),
+    },
+    gemini: null,
+    parse: null,
+    supabase: null,
+  };
+
+  try {
+    const data = await callGeminiModel(GEMINI_PRIMARY_MODEL, buildEditorialPrompt(submission));
+    result.gemini = { ok: true, model: GEMINI_PRIMARY_MODEL };
+    const analysis = clampScores(normalizeAnalysis(parseGeminiJson(data)));
+    result.parse = { ok: true, detected_genre: analysis.detected_genre, theme_fit_score: analysis.theme_fit_score };
+    const probe = await supabaseRequest('/rest/v1/editorial_submissions?select=id&limit=1', { method: 'GET' });
+    result.supabase = { ok: true, readable: Array.isArray(probe) };
+    return sendJson(response, 200, result);
+  } catch (error) {
+    const failed = error.code || 'EDITORIAL_ERROR';
+    if (!result.gemini) result.gemini = { ok: false };
+    else if (!result.parse) result.parse = { ok: false };
+    else if (!result.supabase) result.supabase = { ok: false };
+    return sendJson(response, error.status || 500, {
+      ...result,
+      error: error.publicMessage || 'The editorial request failed.',
+      code: failed,
+      message: safeErrorBody(error.message),
+    });
+  }
 };
 
 const listSubmissions = async (request, response) => {
@@ -294,6 +346,7 @@ export default async function handler(request, response) {
     const action = url.searchParams.get('action');
     const id = url.searchParams.get('id');
 
+    if (request.method === 'GET' && action === 'diagnose') return diagnoseEditorial(request, response);
     if (request.method === 'POST' && action === 'analyze') return analyzeSubmission(request, response);
     if (request.method === 'GET' && action === 'list') return listSubmissions(request, response);
     if (request.method === 'GET' && action === 'get' && id) return getSubmission(request, response, id);
