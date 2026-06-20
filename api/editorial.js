@@ -1,13 +1,31 @@
-const SUPABASE_URL = process.env.SUPABASE_URL || process.env.VITE_SUPABASE_URL || 'https://lvghjhjxntaeaukfcsrt.supabase.co';
+const SUPABASE_URL = process.env.SUPABASE_URL || process.env.NEXT_PUBLIC_SUPABASE_URL || process.env.VITE_SUPABASE_URL || 'https://lvghjhjxntaeaukfcsrt.supabase.co';
 const SUPABASE_SERVICE_ROLE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY;
 const GEMINI_API_KEY = process.env.GEMINI_API_KEY;
-const GEMINI_MODEL = process.env.GEMINI_MODEL || 'gemini-1.5-flash';
+const GEMINI_MODEL = process.env.GEMINI_MODEL || 'gemini-2.0-flash';
+const GEMINI_FALLBACK_MODEL = 'gemini-1.5-flash';
 
 const editorialFields = 'id,created_at,title,author_name,author_email,declared_genre,submission_text,summary,detected_genre,theme_fit_score,literary_quality_score,originality_score,fit_with_ailit_theme,strengths,weaknesses,editorial_recommendation,editor_notes,polite_response_email_draft,status';
 const allowedStatuses = new Set(['pending', 'accepted', 'maybe', 'revise', 'rejected']);
 
 const sendJson = (response, status, payload) => {
   response.status(status).json(payload);
+};
+
+class EditorialError extends Error {
+  constructor(publicMessage, logMessage = publicMessage, status = 500, code = 'EDITORIAL_ERROR') {
+    super(logMessage);
+    this.publicMessage = publicMessage;
+    this.status = status;
+    this.code = code;
+  }
+}
+
+const safeErrorBody = (value) => {
+  const text = typeof value === 'string' ? value : JSON.stringify(value || {});
+  return text
+    .replace(new RegExp(GEMINI_API_KEY || 'never-match-this-key', 'g'), '[redacted-gemini-key]')
+    .replace(new RegExp(SUPABASE_SERVICE_ROLE_KEY || 'never-match-this-key', 'g'), '[redacted-supabase-key]')
+    .slice(0, 1800);
 };
 
 const readBody = async (request) => {
@@ -20,8 +38,17 @@ const readBody = async (request) => {
 
 const cleanText = (value, maxLength = 20000) => String(value || '').trim().slice(0, maxLength);
 
+const parseJsonMaybe = (text) => {
+  if (!text) return null;
+  try {
+    return JSON.parse(text);
+  } catch {
+    return null;
+  }
+};
+
 const supabaseRequest = async (path, options = {}) => {
-  if (!SUPABASE_SERVICE_ROLE_KEY) throw new Error('Supabase service role key is not configured.');
+  if (!SUPABASE_SERVICE_ROLE_KEY) throw new EditorialError('Missing environment variable', 'SUPABASE_SERVICE_ROLE_KEY is not configured.', 500, 'MISSING_ENV');
   const response = await fetch(`${SUPABASE_URL}${path}`, {
     ...options,
     headers: {
@@ -33,9 +60,14 @@ const supabaseRequest = async (path, options = {}) => {
     },
   });
   const text = await response.text();
-  const data = text ? JSON.parse(text) : null;
+  const data = parseJsonMaybe(text);
   if (!response.ok) {
-    throw new Error(data?.message || data?.error_description || data?.hint || 'Supabase request failed.');
+    console.error('Supabase request failed', {
+      status: response.status,
+      path,
+      body: safeErrorBody(data || text),
+    });
+    throw new EditorialError('Supabase save failed', data?.message || data?.error_description || data?.hint || 'Supabase request failed.', 500, 'SUPABASE_FAILED');
   }
   return data;
 };
@@ -63,9 +95,19 @@ const requireAdmin = async (request) => {
 
 const parseGeminiJson = (data) => {
   const text = data?.candidates?.[0]?.content?.parts?.map((part) => part.text || '').join('\n').trim();
-  if (!text) throw new Error('Gemini returned an empty analysis.');
-  const match = text.match(/\{[\s\S]*\}/);
-  return JSON.parse(match ? match[0] : text);
+  if (!text) throw new EditorialError('Invalid JSON from Gemini', 'Gemini returned an empty analysis.', 502, 'GEMINI_INVALID_JSON');
+  const withoutFence = text
+    .replace(/^```(?:json)?\s*/i, '')
+    .replace(/\s*```$/i, '')
+    .trim();
+  const match = withoutFence.match(/\{[\s\S]*\}/);
+  const jsonText = match ? match[0] : withoutFence;
+  try {
+    return JSON.parse(jsonText);
+  } catch (error) {
+    console.error('Invalid JSON from Gemini', { preview: safeErrorBody(text), message: error.message });
+    throw new EditorialError('Invalid JSON from Gemini', error.message, 502, 'GEMINI_INVALID_JSON');
+  }
 };
 
 const normalizeAnalysis = (analysis) => ({
@@ -90,11 +132,9 @@ const clampScores = (analysis) => {
   return analysis;
 };
 
-const analyzeWithGemini = async (submission) => {
-  if (!GEMINI_API_KEY) throw new Error('Gemini API key is not configured.');
-
+const buildEditorialPrompt = (submission) => {
   // The agent is advisory: it produces structured editorial support, never a final decision.
-  const prompt = `You are the AiLit Editorial Agent for AiLit Magazine.
+  return `You are the AiLit Editorial Agent for AiLit Magazine.
 
 AiLit Magazine explores literature, creativity, human imagination, and the relationship between AI and creative expression.
 
@@ -112,26 +152,69 @@ Declared genre: ${submission.declared_genre || 'Not provided'}
 
 Submission:
 ${submission.submission_text}`;
+};
 
-  const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(GEMINI_MODEL)}:generateContent?key=${encodeURIComponent(GEMINI_API_KEY)}`, {
+const isUnsupportedGeminiModel = (status, message) =>
+  status === 404 || /not found|not supported|unsupported|is not found|model/i.test(message);
+
+const callGeminiModel = async (model, prompt) => {
+  const endpoint = `https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(model)}:generateContent`;
+  const response = await fetch(`${endpoint}?key=${encodeURIComponent(GEMINI_API_KEY)}`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({
-      contents: [{ role: 'user', parts: [{ text: prompt }] }],
+      contents: [{ parts: [{ text: prompt }] }],
       generationConfig: {
         temperature: 0.35,
         responseMimeType: 'application/json',
       },
     }),
   });
-  const data = await response.json();
+
+  const text = await response.text();
+  const data = parseJsonMaybe(text);
+  console.info('Gemini API response', {
+    status: response.status,
+    ok: response.ok,
+    model,
+  });
+
   if (!response.ok) {
     const message = data?.error?.message || 'Gemini analysis failed.';
-    if (/requests? to this api|api key|permission|blocked|not enabled|forbidden/i.test(message)) {
-      throw new Error('Gemini rejected the request. Check that GEMINI_API_KEY is a server-side Vercel Production environment variable, the Generative Language API is enabled for that Google project, and the API key is not restricted to browser referrers.');
-    }
-    throw new Error(message);
+    console.error('Gemini API failed', {
+      status: response.status,
+      model,
+      body: safeErrorBody(data || text),
+    });
+    const error = new EditorialError('Gemini API failed', message, 502, 'GEMINI_FAILED');
+    error.geminiStatus = response.status;
+    error.geminiMessage = message;
+    throw error;
   }
+
+  return data;
+};
+
+const analyzeWithGemini = async (submission) => {
+  if (!GEMINI_API_KEY) throw new EditorialError('Missing environment variable', 'GEMINI_API_KEY is not configured.', 500, 'MISSING_ENV');
+
+  const prompt = buildEditorialPrompt(submission);
+  let data;
+  try {
+    data = await callGeminiModel(GEMINI_MODEL, prompt);
+  } catch (error) {
+    if (GEMINI_MODEL !== GEMINI_FALLBACK_MODEL && isUnsupportedGeminiModel(error.geminiStatus, error.geminiMessage || error.message)) {
+      console.warn('Gemini primary model failed; trying fallback model', {
+        primaryModel: GEMINI_MODEL,
+        fallbackModel: GEMINI_FALLBACK_MODEL,
+        status: error.geminiStatus,
+      });
+      data = await callGeminiModel(GEMINI_FALLBACK_MODEL, prompt);
+    } else {
+      throw error;
+    }
+  }
+
   return clampScores(normalizeAnalysis(parseGeminiJson(data)));
 };
 
@@ -153,10 +236,17 @@ const analyzeSubmission = async (request, response) => {
   }
 
   const analysis = await analyzeWithGemini(submission);
-  const [saved] = await supabaseRequest(`/rest/v1/editorial_submissions?select=${editorialFields}`, {
-    method: 'POST',
-    body: JSON.stringify({ ...submission, ...analysis, status: 'pending' }),
-  });
+  let saved;
+  try {
+    [saved] = await supabaseRequest(`/rest/v1/editorial_submissions?select=${editorialFields}`, {
+      method: 'POST',
+      body: JSON.stringify({ ...submission, ...analysis, status: 'pending' }),
+    });
+  } catch (error) {
+    if (error instanceof EditorialError) throw error;
+    console.error('Supabase save failed', { message: error.message });
+    throw new EditorialError('Supabase save failed', error.message, 500, 'SUPABASE_FAILED');
+  }
   return sendJson(response, 200, { submission: saved });
 };
 
@@ -207,6 +297,13 @@ export default async function handler(request, response) {
 
     return sendJson(response, 404, { error: 'Editorial API route not found.' });
   } catch (error) {
-    return sendJson(response, 500, { error: error.message || 'The editorial request failed.' });
+    console.error('Editorial API error', {
+      code: error.code || 'EDITORIAL_ERROR',
+      message: error.message,
+    });
+    return sendJson(response, error.status || 500, {
+      error: error.publicMessage || 'The editorial request failed.',
+      code: error.code || 'EDITORIAL_ERROR',
+    });
   }
 }
