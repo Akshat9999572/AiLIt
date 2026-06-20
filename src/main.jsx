@@ -101,6 +101,9 @@ function App() {
   const [menuOpen, setMenuOpen] = useState(false);
   const routeView = () => {
     if (window.location.pathname === '/admin') return 'admin';
+    if (window.location.pathname === '/editorial-agent') return 'editorialAgent';
+    if (window.location.pathname === '/editorial-dashboard') return 'editorialDashboard';
+    if (window.location.pathname.startsWith('/editorial-dashboard/')) return 'editorialDetail';
     if (window.location.pathname === '/about') return 'about';
     if (window.location.pathname === '/privacy') return 'privacy';
     if (window.location.pathname === '/submit') return 'submit';
@@ -141,6 +144,16 @@ function App() {
   const [inlineImageUploading, setInlineImageUploading] = useState(false);
   const [imageFile, setImageFile] = useState(null);
   const [draft, setDraft] = useState({ type: 'Article', title: '', author: '', introduction: '', image: '', imageDescription: '' });
+  const [editorialForm, setEditorialForm] = useState({ title: '', author_name: '', author_email: '', declared_genre: '', submission_text: '' });
+  const [editorialSaving, setEditorialSaving] = useState(false);
+  const [editorialError, setEditorialError] = useState('');
+  const [editorialResult, setEditorialResult] = useState(null);
+  const [editorialList, setEditorialList] = useState([]);
+  const [editorialListLoading, setEditorialListLoading] = useState(false);
+  const [editorialDetail, setEditorialDetail] = useState(null);
+  const [editorialDetailLoading, setEditorialDetailLoading] = useState(false);
+  const [editorialUpdateSaving, setEditorialUpdateSaving] = useState(false);
+  const [editorialMessage, setEditorialMessage] = useState('');
 
   useEffect(() => {
     if (!isNativeApp) return undefined;
@@ -249,6 +262,11 @@ function App() {
   useEffect(() => {
     if (isAdmin) loadSubmissions();
   }, [isAdmin]);
+
+  useEffect(() => {
+    if (view === 'editorialDashboard' && session && isAdmin) loadEditorialSubmissions();
+    if (view === 'editorialDetail' && session && isAdmin) loadEditorialSubmission();
+  }, [view, session, isAdmin]);
 
   const loadStories = async () => {
     const { data } = await supabase.from('writings').select('*').eq('published', true).order('created_at', { ascending: false });
@@ -612,6 +630,88 @@ function App() {
     await loadStories();
   };
 
+  const editorialFetch = async (url, options = {}) => {
+    const headers = { ...(options.headers || {}) };
+    if (session?.access_token) headers.Authorization = `Bearer ${session.access_token}`;
+    if (!(options.body instanceof FormData)) headers['Content-Type'] = 'application/json';
+    const response = await fetch(url, { ...options, headers });
+    const data = await response.json().catch(() => ({}));
+    if (!response.ok) throw new Error(data.error || 'The editorial request failed.');
+    return data;
+  };
+
+  const analyzeEditorialSubmission = async (event) => {
+    event.preventDefault();
+    setEditorialSaving(true);
+    setEditorialError('');
+    setEditorialResult(null);
+    try {
+      const data = await editorialFetch('/api/editorial?action=analyze', {
+        method: 'POST',
+        body: JSON.stringify(editorialForm),
+      });
+      setEditorialResult(data.submission);
+    } catch (error) {
+      setEditorialError(error.message);
+    } finally {
+      setEditorialSaving(false);
+    }
+  };
+
+  const loadEditorialSubmissions = async () => {
+    setEditorialListLoading(true);
+    setEditorialError('');
+    try {
+      const data = await editorialFetch('/api/editorial?action=list');
+      setEditorialList(data.submissions || []);
+    } catch (error) {
+      setEditorialError(error.message);
+    } finally {
+      setEditorialListLoading(false);
+    }
+  };
+
+  const loadEditorialSubmission = async () => {
+    const id = window.location.pathname.split('/editorial-dashboard/')[1];
+    if (!id) return;
+    setEditorialDetailLoading(true);
+    setEditorialError('');
+    setEditorialMessage('');
+    try {
+      const data = await editorialFetch(`/api/editorial?action=get&id=${encodeURIComponent(id)}`);
+      setEditorialDetail(data.submission);
+    } catch (error) {
+      setEditorialError(error.message);
+      setEditorialDetail(null);
+    } finally {
+      setEditorialDetailLoading(false);
+    }
+  };
+
+  const openEditorialSubmission = (item) => {
+    navigateTo('editorialDetail', `/editorial-dashboard/${item.id}`);
+  };
+
+  const updateEditorialSubmission = async (event) => {
+    event.preventDefault();
+    if (!editorialDetail) return;
+    setEditorialUpdateSaving(true);
+    setEditorialError('');
+    setEditorialMessage('');
+    try {
+      const data = await editorialFetch(`/api/editorial?action=update&id=${encodeURIComponent(editorialDetail.id)}`, {
+        method: 'PATCH',
+        body: JSON.stringify({ status: editorialDetail.status, editor_notes: editorialDetail.editor_notes || '' }),
+      });
+      setEditorialDetail(data.submission);
+      setEditorialMessage('Editorial status and notes saved.');
+    } catch (error) {
+      setEditorialError(error.message);
+    } finally {
+      setEditorialUpdateSaving(false);
+    }
+  };
+
   if (view === 'admin' && !authReady) {
     return <main className="admin-loading">Checking admin access...</main>;
   }
@@ -756,6 +856,174 @@ function App() {
               ))}
             </div>
           ) : <p className="manager-empty">No submissions received yet.</p>}
+        </section>
+      </main>
+    );
+  }
+
+  if (view === 'editorialAgent') {
+    const resultRows = editorialResult ? [
+      ['Summary', editorialResult.summary],
+      ['Detected genre', editorialResult.detected_genre],
+      ['Theme fit score', editorialResult.theme_fit_score],
+      ['Literary quality score', editorialResult.literary_quality_score],
+      ['Originality score', editorialResult.originality_score],
+      ['Fit with AiLit theme', editorialResult.fit_with_ailit_theme],
+      ['Strengths', editorialResult.strengths],
+      ['Weaknesses', editorialResult.weaknesses],
+      ['Editorial recommendation', editorialResult.editorial_recommendation],
+      ['Editor notes', editorialResult.editor_notes],
+      ['Polite response email draft', editorialResult.polite_response_email_draft],
+    ] : [];
+
+    return (
+      <main className="editorial-agent-page">
+        <header className="editor-header">
+          <button className="brand" onClick={() => navigateTo('home', '/')}><img src="/ailit-logo.png" alt="" /><span>AiLit</span></button>
+          <span>Editorial Agent</span>
+          <button className="editor-exit" onClick={() => navigateTo('home', '/')}><X size={19} /> Close</button>
+        </header>
+        <section className="editorial-shell">
+          <div className="editorial-intro">
+            <span className="eyebrow">Kaggle capstone</span>
+            <h1>AiLit Editorial Agent.</h1>
+            <p>The agent reads a literary submission and prepares structured editorial support for AiLit: summary, genre, scores, strengths, weaknesses, recommendation, notes, and a draft response email.</p>
+            <p className="human-notice">AI analysis is advisory. Final editorial decisions remain with the human editor.</p>
+          </div>
+          <form className="editorial-form" onSubmit={analyzeEditorialSubmission}>
+            <label>Title<input value={editorialForm.title} onChange={(event) => setEditorialForm({ ...editorialForm, title: event.target.value })} required /></label>
+            <div className="editorial-row">
+              <label>Author name<input value={editorialForm.author_name} onChange={(event) => setEditorialForm({ ...editorialForm, author_name: event.target.value })} /></label>
+              <label>Author email<input type="email" value={editorialForm.author_email} onChange={(event) => setEditorialForm({ ...editorialForm, author_email: event.target.value })} /></label>
+            </div>
+            <label>Declared genre<input value={editorialForm.declared_genre} onChange={(event) => setEditorialForm({ ...editorialForm, declared_genre: event.target.value })} placeholder="Poem, essay, fiction, review..." /></label>
+            <label>Submission text<textarea value={editorialForm.submission_text} onChange={(event) => setEditorialForm({ ...editorialForm, submission_text: event.target.value })} required /></label>
+            {editorialError && <p className="form-message" role="alert">{editorialError}</p>}
+            <button className="solid-button" type="submit" disabled={editorialSaving}>{editorialSaving ? 'Analyzing...' : 'Analyze Submission'} <Sparkles size={18} /></button>
+          </form>
+          {editorialSaving && <p className="editorial-loading">Reading the submission and preparing advisory analysis...</p>}
+          {editorialResult && (
+            <section className="editorial-result" aria-live="polite">
+              <span className="eyebrow">Saved analysis</span>
+              <h2>{editorialResult.title}</h2>
+              <p className="human-notice">This is an editorial recommendation only. It does not publish, accept, reject, or email the author automatically.</p>
+              <div className="analysis-grid">
+                {resultRows.map(([label, value]) => <article key={label}><b>{label}</b><p>{value || 'Not provided'}</p></article>)}
+              </div>
+            </section>
+          )}
+        </section>
+      </main>
+    );
+  }
+
+  if ((view === 'editorialDashboard' || view === 'editorialDetail') && !authReady) {
+    return <main className="admin-loading">Checking editorial access...</main>;
+  }
+
+  if ((view === 'editorialDashboard' || view === 'editorialDetail') && !session) {
+    return (
+      <main className="admin-login-page">
+        <header className="editor-header">
+          <button className="brand" onClick={() => navigateTo('home', '/')}><img src="/ailit-logo.png" alt="" /><span>AiLit</span></button>
+          <span>Editorial Dashboard</span>
+          <button className="editor-exit" onClick={() => navigateTo('home', '/')}><X size={19} /> Close</button>
+        </header>
+        <form className="admin-login-form" onSubmit={login}>
+          <span className="eyebrow">Restricted access</span>
+          <h1>Editor sign in.</h1>
+          <label>Email<input type="email" value={authForm.email} onChange={(event) => setAuthForm({ ...authForm, email: event.target.value })} required /></label>
+          <label>Password<input type="password" value={authForm.password} onChange={(event) => setAuthForm({ ...authForm, password: event.target.value })} required /></label>
+          {message && <p className="form-message">{message}</p>}
+          <button className="solid-button" type="submit">Continue <ArrowRight size={18} /></button>
+        </form>
+      </main>
+    );
+  }
+
+  if ((view === 'editorialDashboard' || view === 'editorialDetail') && session && !adminChecked) {
+    return <main className="admin-loading">Checking editorial access...</main>;
+  }
+
+  if ((view === 'editorialDashboard' || view === 'editorialDetail') && session && !isAdmin) {
+    return <main className="access-denied"><h1>Access denied.</h1><p>This account is not an AiLit administrator.</p><button className="solid-button" onClick={logout}>Sign out</button></main>;
+  }
+
+  if (view === 'editorialDashboard' && isAdmin) {
+    return (
+      <main className="editorial-dashboard-page">
+        <header className="editor-header">
+          <button className="brand" onClick={() => navigateTo('home', '/')}><img src="/ailit-logo.png" alt="" /><span>AiLit</span></button>
+          <span>Editorial Dashboard</span>
+          <div className="editor-account"><button className="editor-exit" onClick={() => navigateTo('editorialAgent', '/editorial-agent')}>Agent</button><button className="editor-exit" onClick={logout}><LogOut size={17} /> Sign out</button></div>
+        </header>
+        <section className="editorial-list-shell">
+          <div className="manager-heading">
+            <div><span className="eyebrow">Human-in-the-loop review</span><h1>Editorial submissions</h1></div>
+            <button className="text-button" onClick={loadEditorialSubmissions}>Refresh</button>
+          </div>
+          {editorialError && <p className="form-message">{editorialError}</p>}
+          {editorialListLoading ? <p className="manager-empty">Loading editorial submissions...</p> : editorialList.length ? (
+            <div className="editorial-table">
+              <div className="editorial-table-head"><span>Title</span><span>Author</span><span>Genre</span><span>Theme</span><span>Recommendation</span><span>Status</span><span>Date</span></div>
+              {editorialList.map((item) => (
+                <button className="editorial-table-row" key={item.id} onClick={() => openEditorialSubmission(item)}>
+                  <span>{item.title}</span>
+                  <span>{item.author_name || 'Unknown'}</span>
+                  <span>{item.detected_genre || 'Unreviewed'}</span>
+                  <span>{item.theme_fit_score ?? '—'}</span>
+                  <span>{item.editorial_recommendation || 'Pending'}</span>
+                  <span>{item.status || 'pending'}</span>
+                  <span>{new Date(item.created_at).toLocaleDateString()}</span>
+                </button>
+              ))}
+            </div>
+          ) : <p className="manager-empty">No editorial submissions yet.</p>}
+        </section>
+      </main>
+    );
+  }
+
+  if (view === 'editorialDetail' && isAdmin) {
+    const scoreRows = editorialDetail ? [
+      ['Theme fit', editorialDetail.theme_fit_score],
+      ['Literary quality', editorialDetail.literary_quality_score],
+      ['Originality', editorialDetail.originality_score],
+    ] : [];
+    return (
+      <main className="editorial-dashboard-page">
+        <header className="editor-header">
+          <button className="brand" onClick={() => navigateTo('editorialDashboard', '/editorial-dashboard')}><img src="/ailit-logo.png" alt="" /><span>AiLit</span></button>
+          <span>Editorial Review</span>
+          <button className="editor-exit" onClick={() => navigateTo('editorialDashboard', '/editorial-dashboard')}><X size={19} /> Dashboard</button>
+        </header>
+        <section className="editorial-detail-shell">
+          {editorialDetailLoading ? <p className="manager-empty">Loading editorial review...</p> : editorialDetail ? (
+            <>
+              <article className="editorial-detail-main">
+                <span className="eyebrow">{editorialDetail.declared_genre || 'Submission'}</span>
+                <h1>{editorialDetail.title}</h1>
+                <p className="author">By {editorialDetail.author_name || 'Unknown author'} {editorialDetail.author_email ? `· ${editorialDetail.author_email}` : ''}</p>
+                <div className="score-strip">{scoreRows.map(([label, value]) => <div key={label}><b>{value ?? '—'}</b><span>{label}</span></div>)}</div>
+                <section><h2>Original submission</h2><p className="submission-text-display">{editorialDetail.submission_text}</p></section>
+                <section><h2>AI summary</h2><p>{editorialDetail.summary || 'Not available'}</p></section>
+                <section><h2>Detected genre</h2><p>{editorialDetail.detected_genre || 'Not available'}</p></section>
+                <section><h2>Fit with AiLit theme</h2><p>{editorialDetail.fit_with_ailit_theme || 'Not available'}</p></section>
+                <section><h2>Strengths</h2><p>{editorialDetail.strengths || 'Not available'}</p></section>
+                <section><h2>Weaknesses</h2><p>{editorialDetail.weaknesses || 'Not available'}</p></section>
+                <section><h2>Recommendation</h2><p>{editorialDetail.editorial_recommendation || 'Not available'}</p></section>
+                <section><h2>Polite response email draft</h2><p className="submission-text-display">{editorialDetail.polite_response_email_draft || 'Not available'}</p></section>
+              </article>
+              <form className="editorial-review-panel" onSubmit={updateEditorialSubmission}>
+                <p className="human-notice">AI analysis is advisory. Final editorial decisions remain with the human editor.</p>
+                <label>Status<select value={editorialDetail.status || 'pending'} onChange={(event) => setEditorialDetail({ ...editorialDetail, status: event.target.value })}><option value="pending">pending</option><option value="accepted">accepted</option><option value="maybe">maybe</option><option value="revise">revise</option><option value="rejected">rejected</option></select></label>
+                <label>Editor notes<textarea value={editorialDetail.editor_notes || ''} onChange={(event) => setEditorialDetail({ ...editorialDetail, editor_notes: event.target.value })} /></label>
+                {editorialError && <p className="form-message" role="alert">{editorialError}</p>}
+                {editorialMessage && <p className="submission-success" role="status">{editorialMessage}</p>}
+                <button className="solid-button" type="submit" disabled={editorialUpdateSaving}>{editorialUpdateSaving ? 'Saving...' : 'Save editorial review'} <ArrowRight size={18} /></button>
+              </form>
+            </>
+          ) : <p className="form-message">{editorialError || 'Editorial submission not found.'}</p>}
         </section>
       </main>
     );
