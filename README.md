@@ -18,27 +18,39 @@ No Gemini API key, agent UI, admin dashboard, or production automation is includ
 
 ## Kaggle Capstone: AiLit Editorial Agent
 
+Selected track: **Agents for Good**
+
 ### Problem
 
-Literary magazines receive submissions that need careful reading, genre awareness, theme fit analysis, and respectful communication with writers. The challenge is to use AI to support editorial attention without replacing the human editor or turning literary judgment into an automatic decision.
+Small literary magazines often receive more submissions than a small editorial team can read quickly. Each piece deserves careful attention: genre awareness, close reading, theme fit, literary quality, originality, and respectful communication with the writer. The challenge is to use AI for public good in the arts without replacing human taste, accountability, or editorial judgment.
 
 ### Solution
 
-The AiLit Editorial Agent is a human-in-the-loop editorial assistant for AiLit Magazine. It accepts a literary submission, analyzes it with Gemini, saves both the original text and the AI analysis in Supabase, and presents the result to an editor for review. The agent provides a recommendation only; it does not publish, accept, reject, or email authors automatically.
+The AiLit Editorial Agent is a human-in-the-loop editorial assistant for AiLit Magazine. It accepts a literary submission, analyzes it with Gemini, saves both the original text and the AI analysis in Supabase, and presents the result to a human editor for review.
+
+The agent provides decision support only. It does not accept, reject, publish, or email writers automatically. The human editor remains the final authority.
 
 ### Architecture
 
-- React/Vite frontend renders the new editorial pages.
-- Vercel server-side API route `api/editorial.js` handles all Gemini and Supabase service-role work.
-- Gemini is called only from the server.
-- Supabase stores original submissions, AI analysis, editor notes, and review status in `public.editorial_submissions`.
-- The editorial dashboard uses the existing Supabase Auth session and verifies that the signed-in user exists in the `admins` table.
+The feature is intentionally small and deployable:
+
+- **Frontend**: React/Vite renders the editorial agent form, result display, dashboard list, and detail review page.
+- **Server API**: Vercel serverless route `api/editorial.js` receives requests, validates input, calls Gemini, parses structured JSON, saves records to Supabase, and protects dashboard operations.
+- **AI model**: Gemini returns advisory editorial analysis in a structured JSON shape.
+- **Database**: Supabase stores the original submission, AI analysis, recommendation, editor notes, status, and timestamps in `public.editorial_submissions`.
+- **Authentication**: The dashboard uses the existing Supabase Auth session and verifies that the signed-in user appears in the `admins` table.
+- **Human review**: Editors update status and notes manually after reading the submission and the advisory analysis.
 
 ### Routes
 
 - `/editorial-agent` - public page for entering a literary submission and viewing the saved advisory analysis.
 - `/editorial-dashboard` - admin-only list of saved editorial submissions.
-- `/editorial-dashboard/[id]` - admin-only detail page for original text, AI analysis, recommendation, email draft, status, and editor notes.
+- `/editorial-dashboard/[id]` - admin-only detail page showing original text, AI summary, scores, strengths, weaknesses, recommendation, draft response, status, and editor notes.
+- `/api/editorial?action=analyze` - server-side analysis and save endpoint.
+- `/api/editorial?action=list` - admin-only list endpoint.
+- `/api/editorial?action=get&id=<id>` - admin-only detail endpoint.
+- `/api/editorial?action=update&id=<id>` - admin-only status and notes update endpoint.
+- `/api/editorial?action=diagnose` - server-side health check for Gemini, parsing, and Supabase access.
 
 ### Supabase Table
 
@@ -50,7 +62,17 @@ The table stores title, author details, declared genre, original submission text
 
 ### Gemini API Usage
 
-The server route calls Gemini with an editorial prompt focused on AiLit Magazine's theme: literature, creativity, human imagination, and the relationship between AI and creative expression. Gemini is asked to return structured JSON with:
+The server route calls Gemini with an editorial prompt focused on AiLit Magazine's theme: literature, creativity, human imagination, and the relationship between AI and creative expression.
+
+The model is configurable with:
+
+```bash
+GEMINI_MODEL=gemini-3.1-flash-lite
+```
+
+If `GEMINI_MODEL` is not set, the server defaults to `gemini-3.1-flash-lite`. The frontend never calls Gemini directly and never receives the Gemini API key.
+
+Gemini is asked to return structured JSON with:
 
 - `summary`
 - `detected_genre`
@@ -68,9 +90,9 @@ The server route calls Gemini with an editorial prompt focused on AiLit Magazine
 
 The interface displays this notice clearly:
 
-`AI analysis is advisory. Final editorial decisions remain with the human editor.`
+`AI analysis is advisory. Final editorial decisions remain with the human editor. The agent does not publish work or send email automatically.`
 
-The agent never makes the final publishing decision. It only prepares editorial support. A human editor must review the analysis, update the status, write or revise notes, and decide what happens next.
+The agent never makes the final publishing decision. It only prepares editorial support. A human editor must review the analysis, update the status, write or revise notes, decide what happens next, and revise any email draft before sending.
 
 ### Security Features
 
@@ -78,10 +100,13 @@ The agent never makes the final publishing decision. It only prepares editorial 
 - `SUPABASE_SERVICE_ROLE_KEY` is used only in the server-side API route.
 - Neither secret is exposed through frontend code.
 - Required fields are validated before analysis.
+- Gemini errors are logged with safe model/status/message details only; secrets are redacted.
+- Gemini responses are parsed defensively so markdown fences or extra prose do not break the workflow.
 - Dashboard list, detail, and update operations require an authenticated admin.
 - The Supabase table has RLS enabled and public access revoked.
 - The app does not automatically send emails.
 - The app does not automatically publish submissions.
+- The diagnostic endpoint reports whether required services are reachable without exposing secret values.
 
 ### How To Run Locally
 
@@ -123,9 +148,22 @@ vercel dev
 
 Never commit real API keys or secrets.
 
+### How To Deploy
+
+1. Add the production environment variables in Vercel.
+2. Confirm `GEMINI_API_KEY`, `GEMINI_MODEL`, `SUPABASE_SERVICE_ROLE_KEY`, and Supabase public variables are set.
+3. Push to the production branch connected to Vercel.
+4. After deployment, test:
+
+```bash
+https://ailitmagazine.xyz/api/editorial?action=diagnose
+```
+
+The diagnostic should report Gemini, JSON parsing, and Supabase as healthy.
+
 ### Course Concepts Demonstrated
 
-1. **Agent system** - Gemini acts as an advisory editorial agent that produces structured analysis and recommendations.
-2. **Security features** - secrets stay server-side, admin routes verify auth, and Supabase RLS protects editorial data.
-3. **Deployability** - the feature is implemented with Vercel API routes, Supabase, and environment variables suitable for production deployment.
-4. **Antigravity-assisted development** - the project is extended incrementally with isolated database, API, UI, and documentation changes while preserving the existing website.
+1. **Agent system** - Gemini acts as an advisory editorial agent with a defined role, prompt, structured outputs, model configuration, and a saved reasoning trail for editors.
+2. **Security features** - secrets stay server-side, admin routes verify Supabase Auth, service-role access is isolated in the API route, RLS protects editorial data, and logs avoid exposing keys.
+3. **Deployability** - the feature runs on the existing Vercel deployment, uses environment variables, stores data in Supabase, and includes a diagnostic endpoint for production verification.
+4. **Antigravity-assisted development** - the capstone was built incrementally: database setup first, server-side agent workflow next, editor dashboard after that, then final debugging, documentation, and deployment polish while preserving the existing AiLit site.

@@ -890,8 +890,8 @@ function App() {
           <div className="editorial-intro">
             <span className="eyebrow">Kaggle capstone</span>
             <h1>AiLit Editorial Agent.</h1>
-            <p>The agent reads a literary submission and prepares structured editorial support for AiLit: summary, genre, scores, strengths, weaknesses, recommendation, notes, and a draft response email.</p>
-            <p className="human-notice">AI analysis is advisory. Final editorial decisions remain with the human editor.</p>
+            <p>This advisory agent reads a literary submission and prepares structured support for an editor: summary, genre, theme fit, literary scores, strengths, concerns, recommendation, notes, and a draft response.</p>
+            <p className="human-notice">AI analysis is advisory. Final editorial decisions remain with the human editor. The agent does not publish work or send email automatically.</p>
           </div>
           <form className="editorial-form" onSubmit={analyzeEditorialSubmission}>
             <label>Title<input value={editorialForm.title} onChange={(event) => setEditorialForm({ ...editorialForm, title: event.target.value })} required /></label>
@@ -900,16 +900,16 @@ function App() {
               <label>Author email<input type="email" value={editorialForm.author_email} onChange={(event) => setEditorialForm({ ...editorialForm, author_email: event.target.value })} /></label>
             </div>
             <label>Declared genre<input value={editorialForm.declared_genre} onChange={(event) => setEditorialForm({ ...editorialForm, declared_genre: event.target.value })} placeholder="Poem, essay, fiction, review..." /></label>
-            <label>Submission text<textarea value={editorialForm.submission_text} onChange={(event) => setEditorialForm({ ...editorialForm, submission_text: event.target.value })} required /></label>
+            <label>Submission text for analysis<textarea value={editorialForm.submission_text} onChange={(event) => setEditorialForm({ ...editorialForm, submission_text: event.target.value })} required /></label>
             {editorialError && <p className="form-message" role="alert">{editorialError}</p>}
-            <button className="solid-button" type="submit" disabled={editorialSaving}>{editorialSaving ? 'Analyzing...' : 'Analyze Submission'} <Sparkles size={18} /></button>
+            <button className="solid-button" type="submit" disabled={editorialSaving}>{editorialSaving ? 'Preparing analysis...' : 'Analyze Submission'} <Sparkles size={18} /></button>
           </form>
-          {editorialSaving && <p className="editorial-loading">Reading the submission and preparing advisory analysis...</p>}
+          {editorialSaving && <p className="editorial-loading">Reading the submission, asking Gemini for structured editorial analysis, and saving the result for human review...</p>}
           {editorialResult && (
             <section className="editorial-result" aria-live="polite">
-              <span className="eyebrow">Saved analysis</span>
+              <span className="eyebrow">Saved advisory analysis</span>
               <h2>{editorialResult.title}</h2>
-              <p className="human-notice">This is an editorial recommendation only. It does not publish, accept, reject, or email the author automatically.</p>
+              <p className="human-notice">This recommendation is a decision-support note only. A human editor must make the final decision and revise any response before sending.</p>
               <div className="analysis-grid">
                 {resultRows.map(([label, value]) => <article key={label}><b>{label}</b><p>{value || 'Not provided'}</p></article>)}
               </div>
@@ -968,7 +968,7 @@ function App() {
           {editorialError && <p className="form-message">{editorialError}</p>}
           {editorialListLoading ? <p className="manager-empty">Loading editorial submissions...</p> : editorialList.length ? (
             <div className="editorial-table">
-              <div className="editorial-table-head"><span>Title</span><span>Author</span><span>Genre</span><span>Theme</span><span>Recommendation</span><span>Status</span><span>Date</span></div>
+              <div className="editorial-table-head"><span>Title</span><span>Author</span><span>Detected genre</span><span>Theme score</span><span>Advisory recommendation</span><span>Status</span><span>Date</span></div>
               {editorialList.map((item) => (
                 <button className="editorial-table-row" key={item.id} onClick={() => openEditorialSubmission(item)}>
                   <span>{item.title}</span>
@@ -1014,11 +1014,11 @@ function App() {
                 <section><h2>Fit with AiLit theme</h2><p>{editorialDetail.fit_with_ailit_theme || 'Not available'}</p></section>
                 <section><h2>Strengths</h2><p>{editorialDetail.strengths || 'Not available'}</p></section>
                 <section><h2>Weaknesses</h2><p>{editorialDetail.weaknesses || 'Not available'}</p></section>
-                <section><h2>Recommendation</h2><p>{editorialDetail.editorial_recommendation || 'Not available'}</p></section>
-                <section><h2>Polite response email draft</h2><p className="submission-text-display">{editorialDetail.polite_response_email_draft || 'Not available'}</p></section>
+                <section><h2>Advisory recommendation</h2><p>{editorialDetail.editorial_recommendation || 'Not available'}</p></section>
+                <section><h2>Draft response for editor review</h2><p className="submission-text-display">{editorialDetail.polite_response_email_draft || 'Not available'}</p></section>
               </article>
               <form className="editorial-review-panel" onSubmit={updateEditorialSubmission}>
-                <p className="human-notice">AI analysis is advisory. Final editorial decisions remain with the human editor.</p>
+                <p className="human-notice">AI analysis is advisory. Final editorial decisions, publication choices, and any author emails remain with the human editor.</p>
                 <label>Status<select value={editorialDetail.status || 'pending'} onChange={(event) => setEditorialDetail({ ...editorialDetail, status: event.target.value })}><option value="pending">pending</option><option value="accepted">accepted</option><option value="maybe">maybe</option><option value="revise">revise</option><option value="rejected">rejected</option></select></label>
                 <label>Editor notes<textarea value={editorialDetail.editor_notes || ''} onChange={(event) => setEditorialDetail({ ...editorialDetail, editor_notes: event.target.value })} /></label>
                 {editorialError && <p className="form-message" role="alert">{editorialError}</p>}

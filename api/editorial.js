@@ -62,6 +62,7 @@ const parseJsonMaybe = (text) => {
 
 const supabaseRequest = async (path, options = {}) => {
   if (!SUPABASE_SERVICE_ROLE_KEY) throw new EditorialError('Missing environment variable', 'SUPABASE_SERVICE_ROLE_KEY is not configured.', 500, 'MISSING_ENV');
+  // Service-role Supabase access stays inside this server route so protected editorial records are never written from the browser.
   const response = await fetch(`${SUPABASE_URL}${path}`, {
     ...options,
     headers: {
@@ -97,6 +98,7 @@ const getUser = async (token) => {
 };
 
 const requireAdmin = async (request) => {
+  // Dashboard reads and edits require a signed-in Supabase user who is listed in the admins table.
   const token = request.headers.authorization?.replace(/^Bearer\s+/i, '');
   const user = await getUser(token);
   if (!user?.id) return null;
@@ -107,6 +109,7 @@ const requireAdmin = async (request) => {
 };
 
 const parseGeminiJson = (data) => {
+  // Gemini is instructed to return JSON, but this parser tolerates markdown fences or surrounding prose.
   const text = data?.candidates?.[0]?.content?.parts?.map((part) => part.text || '').join('\n').trim();
   if (!text) throw new EditorialError('Invalid JSON from Gemini', 'Gemini returned an empty analysis.', 502, 'GEMINI_INVALID_JSON');
   const withoutFence = text
@@ -171,6 +174,7 @@ const shouldTryNextGeminiModel = (status, message) =>
   status === 404 || status === 429 || /not found|not supported|unsupported|is not found|model|quota exceeded|rate-limits?/i.test(message);
 
 const callGeminiModel = async (model, prompt) => {
+  // The Gemini API key is used only server-side; logs include model/status/message but never the key.
   const endpoint = `https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(model)}:generateContent`;
   const response = await fetch(`${endpoint}?key=${encodeURIComponent(GEMINI_API_KEY)}`, {
     method: 'POST',
@@ -211,6 +215,7 @@ const callGeminiModel = async (model, prompt) => {
 const analyzeWithGemini = async (submission) => {
   if (!GEMINI_API_KEY) throw new EditorialError('Missing environment variable', 'GEMINI_API_KEY is not configured.', 500, 'MISSING_ENV');
 
+  // Agent workflow: build editorial prompt -> call configured Gemini model -> normalize structured advisory fields.
   const prompt = buildEditorialPrompt(submission);
   const modelsToTry = [GEMINI_MODEL, GEMINI_FALLBACK_MODEL]
     .filter(Boolean)
@@ -236,6 +241,7 @@ const analyzeWithGemini = async (submission) => {
 };
 
 const analyzeSubmission = async (request, response) => {
+  // Public analysis endpoint: validate input, generate advisory analysis, then save the complete record for editor review.
   const body = await readBody(request);
   logStep('body-read', { hasTitle: Boolean(body?.title), hasSubmissionText: Boolean(body?.submission_text) });
   const submission = {
