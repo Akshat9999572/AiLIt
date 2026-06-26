@@ -19,6 +19,94 @@ const lensText = {
   Strange: 'For creative writers, AI can act as a playful collaborator: offering alternate structures, unfamiliar perspectives, and surprising prompts that open new directions without replacing the writer.',
 };
 
+const allowedWritingTags = new Set([
+  'A', 'B', 'BLOCKQUOTE', 'BR', 'DIV', 'EM', 'FONT', 'H2', 'I', 'IMG', 'LI', 'OL', 'P', 'SPAN', 'STRONG', 'U', 'UL',
+]);
+
+const allowedStyleProperties = new Set([
+  'color', 'font-family', 'font-size', 'font-style', 'font-weight', 'text-align', 'text-decoration',
+]);
+
+const isSafeUrl = (value, allowedProtocols = ['http:', 'https:']) => {
+  try {
+    const url = new URL(value, window.location.origin);
+    return allowedProtocols.includes(url.protocol);
+  } catch {
+    return false;
+  }
+};
+
+const sanitizeStyle = (style = '') => {
+  const container = document.createElement('span');
+  container.setAttribute('style', style);
+  const safe = [];
+  for (const property of allowedStyleProperties) {
+    const value = container.style.getPropertyValue(property);
+    if (!value || /url\s*\(|expression\s*\(|javascript:/i.test(value)) continue;
+    safe.push(`${property}: ${value}`);
+  }
+  return safe.join('; ');
+};
+
+const sanitizeWritingHtml = (html = '') => {
+  const template = document.createElement('template');
+  template.innerHTML = html;
+  const blockedTags = new Set(['IFRAME', 'OBJECT', 'SCRIPT', 'STYLE', 'TEMPLATE']);
+
+  const cleanNode = (node) => {
+    if (node.nodeType === Node.COMMENT_NODE) {
+      node.remove();
+      return;
+    }
+
+    if (node.nodeType !== Node.ELEMENT_NODE) return;
+
+    const element = node;
+    [...element.childNodes].forEach(cleanNode);
+
+    if (blockedTags.has(element.tagName)) {
+      element.remove();
+      return;
+    }
+
+    if (!allowedWritingTags.has(element.tagName)) {
+      element.replaceWith(...element.childNodes);
+      return;
+    }
+
+    [...element.attributes].forEach((attribute) => {
+      const name = attribute.name.toLowerCase();
+      const value = attribute.value.trim();
+
+      if (name.startsWith('on')) {
+        element.removeAttribute(attribute.name);
+        return;
+      }
+
+      if (element.tagName === 'A' && name === 'href' && isSafeUrl(value, ['http:', 'https:', 'mailto:'])) {
+        element.setAttribute('target', '_blank');
+        element.setAttribute('rel', 'noopener noreferrer');
+        return;
+      }
+
+      if (element.tagName === 'IMG' && name === 'src' && isSafeUrl(value)) return;
+      if (element.tagName === 'IMG' && name === 'alt') return;
+      if (element.tagName === 'IMG' && name === 'class' && value === 'inline-writing-image') return;
+      if (name === 'style') {
+        const safeStyle = sanitizeStyle(value);
+        if (safeStyle) element.setAttribute('style', safeStyle);
+        else element.removeAttribute('style');
+        return;
+      }
+
+      element.removeAttribute(attribute.name);
+    });
+  };
+
+  [...template.content.childNodes].forEach(cleanNode);
+  return template.innerHTML;
+};
+
 function AnalogueWriter() {
   return (
     <section className="analogue-writer" aria-labelledby="analogue-writer-title">
@@ -514,7 +602,7 @@ function App() {
       author: draft.author,
       introduction: draft.introduction,
       image_description: draft.imageDescription.trim() || null,
-      body: editorRef.current.innerHTML,
+      body: sanitizeWritingHtml(editorRef.current?.innerHTML || ''),
       created_by: session.user.id,
     };
     if (imageUrl) writingPayload.image_url = imageUrl;
@@ -617,7 +705,7 @@ function App() {
       imageDescription: story.image_description || '',
     });
     setImageFile(null);
-    if (editorRef.current) editorRef.current.innerHTML = story.body || '';
+    if (editorRef.current) editorRef.current.innerHTML = sanitizeWritingHtml(story.body || '');
     setMessage(`Editing "${story.title}". Make changes and select Republish.`);
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
@@ -1142,7 +1230,7 @@ function App() {
             {shareMessage && <span className="share-message" role="status">{shareMessage}</span>}
           </div>
           {selectedStory.image_url && <figure className="reading-cover"><img className="reading-image" src={selectedStory.image_url} alt={selectedStory.image_description || ''} />{selectedStory.image_description && <figcaption>{selectedStory.image_description}</figcaption>}</figure>}
-          <div className="reading-body" dangerouslySetInnerHTML={{ __html: selectedStory.body }} />
+          <div className="reading-body" dangerouslySetInnerHTML={{ __html: sanitizeWritingHtml(selectedStory.body) }} />
           <footer className="article-colophon">
             <div className="article-colophon-mark">
               <img src="/ailit-logo.png" alt="" />
