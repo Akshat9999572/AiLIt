@@ -976,7 +976,7 @@ function App() {
         </header>
         <section className="editorial-shell">
           <div className="editorial-intro">
-            <span className="eyebrow">Kaggle capstone</span>
+            <span className="eyebrow">Editorial agent</span>
             <h1>AiLit Editorial Agent.</h1>
             <p>This advisory agent reads a literary submission and prepares structured support for an editor: summary, genre, theme fit, literary scores, strengths, concerns, recommendation, notes, and a draft response.</p>
             <p className="human-notice">AI analysis is advisory. Final editorial decisions remain with the human editor. The agent does not publish work or send email automatically.</p>
